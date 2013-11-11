@@ -31,7 +31,7 @@ lib_LTLIBRARIES = libOCLAlgo.la
 # Build information for libOCLAlgo.la
 
 # Source files
-libOCLAlgo_la_SOURCES =
+libOCLAlgo_la_SOURCES = opencl_queue.cc
 
 # Linker options
 libOCLAlgo_la_LDFLAGS = $(AM_LDFLAGS) \
@@ -41,7 +41,7 @@ libOCLAlgo_la_LDFLAGS = $(AM_LDFLAGS) \
 libOCLAlgo_la_CPPFLAGS = $(AM_CPPFLAGS)
 
 # Used libraries
-libOCLAlgo_la_LIBADD = 
+libOCLAlgo_la_LIBADD = @OPENCL_LIBS@
 
 PARALLEL_SUBDIRS =
 

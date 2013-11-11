@@ -30,42 +30,12 @@ AC_SUBST(INTERFACE_VERSION, [0])
 AC_SUBST(REVISION_NUMBER, [$(cd $srcdir && git rev-list HEAD --count)])
 AC_SUBST(AGE_NUMBER, [0])
 
-# Check some lib...
-#PKG_CHECK_MODULES([ZLIB], [zlib >= 1.2.3])
+AM_COND_IF([TESTS], [
+    AC_CONFIG_LINKS([tests/vector_add.cl:tests/vector_add.cl])
+])
 
-# Add a feature (not enabled by default)
-#AC_ARG_ENABLE([feature],
-#    AS_HELP_STRING([--enable-feature], [build with feature])
-#)
-#AS_IF([test "x$enable_feature" == "xyes"], [
-#    ...
-#])
 
-# Add a feature (enabled by default)
-#AC_ARG_ENABLE([feature],
-#    AS_HELP_STRING([--disable-feature], [build without feature])
-#)
-#AS_IF([test "x$enable_feature" != "xno"], [
-#    ...
-#])
-
-# Add an optional feature
-#AC_ARG_WITH([feature],
-#    AS_HELP_STRING([--with-feature], [additionally, build feature]), [
-    # Action if true
-#], [
-    # Action if false    
-#])
-
-# Additional tests
-#AM_COND_IF([TESTS], [
-#    AC_CONFIG_FILES(tests/subdirectory/Makefile
-#                    )
-#])
-
-# Link with Makefile.am in additional source directories
-#AC_CONFIG_FILES(src/subdirectory/Makefile
-#                )
+PKG_CHECK_MODULES([OPENCL], [OpenCL >= 1.1])
 
 AC_OUTPUT
 
