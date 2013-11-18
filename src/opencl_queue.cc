@@ -1,5 +1,5 @@
 /*! @file opencl_queue.cc
- *  @brief OpenCLQueue class realization
+ *  @brief OpenCLQueue class realization.
  *  @author Senin Dmitry <d.senin@samsung.com>
  *  @version 1.0
  *

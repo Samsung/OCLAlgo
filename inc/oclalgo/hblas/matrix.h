@@ -1,5 +1,5 @@
 /*! @file matrix.h
- *  @brief Matrix Class with Heterogeneous Computing
+ *  @brief Matrix Class with Heterogeneous Computing.
  *  @author Dmitry Senin <d.senin@samsung.com>
  *  @version 1.0
  *

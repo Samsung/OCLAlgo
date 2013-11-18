@@ -1,5 +1,5 @@
 /*! @file matrix_tests.cc
- *  @brief hblas::matrix class tests
+ *  @brief hblas::matrix class tests.
  *  @author Dmitry Senin <d.senin@samsung.com>
  *  @version 1.0
  *

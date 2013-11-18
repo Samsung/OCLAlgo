@@ -1,5 +1,5 @@
 /*! @file openclqueue_tests.cc
- *  @brief OpenCLQueue class tests
+ *  @brief OpenCLQueue class tests.
  *  @author Dmitry Senin <d.senin@samsung.com>
  *  @version 1.0
  *
@@ -15,7 +15,7 @@
 #include <memory>
 #include <gtest/gtest.h>
 #include "src/gtest_main.cc"
-#include "inc/oclalgo/opencl_queue.h"
+#include <oclalgo/opencl_queue.h>
 
 TEST(OpenCLQueue, TryVectorAddKernel) {
   using namespace oclalgo;
@@ -24,26 +24,26 @@ TEST(OpenCLQueue, TryVectorAddKernel) {
     std::string device_name = "Intel(R)";
     OpenCLQueue queue(platform_name, device_name);
 
-    const int size = 1024;
-    std::unique_ptr<int[]> a(new int[size]);
-    std::unique_ptr<int[]> b(new int[size]);
-    std::unique_ptr<int[]> c(new int[size]);
-    for (int i = 0; i < size; ++i) {
+    const int el_count = 1024;
+    shared_array<int> a(new int[el_count], el_count);
+    shared_array<int> b(new int[el_count], el_count);
+    shared_array<int> c(new int[el_count], el_count);
+    for (int i = 0; i < el_count; ++i) {
       a[i] = i;
-      b[i] = size - i;
+      b[i] = el_count - i;
     }
-    cl_data_t<int*, oclalgo::IN> d_a(a.get(), sizeof(int) * size);
-    cl_data_t<int*, oclalgo::IN> d_b(b.get(), sizeof(int) * size);
-    cl_data_t<int*, oclalgo::OUT> d_c(c.get(), sizeof(int) * size);
+    cl_data_t<int, oclalgo::IN> d_a(a);
+    cl_data_t<int, oclalgo::IN> d_b(b);
+    cl_data_t<int, oclalgo::OUT> d_c(c);
 
     auto future = queue.AddTask("vector_add.cl", "vector_add", cl::NullRange,
-                                cl::NDRange(size), cl::NullRange, d_a, d_b, d_c);
+                                cl::NDRange(el_count), cl::NullRange, d_a, d_b, d_c);
     std::tie(d_c) = future.get();
 
     // check results
     bool is_correct = true;
-    for (int i = 0; i < size; ++i) {
-      if (d_c.host_ptr[i] != size) {
+    for (int i = 0; i < el_count; ++i) {
+      if (d_c.host_array[i] != el_count) {
         is_correct = false;
         break;
       }

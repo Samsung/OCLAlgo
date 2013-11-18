@@ -1,5 +1,5 @@
 /*! @file opencl_queue.h
- *  @brief Class for simple OpenCL API usage
+ *  @brief Class for simple OpenCL API usage.
  *  @author Senin Dmitry <d.senin@samsung.com>
  *  @version 1.0
  *
@@ -16,14 +16,18 @@
 #define __CL_ENABLE_EXCEPTIONS
 
 #include <cstdint>
+
 #include <vector>
 #include <unordered_map>
 #include <tuple>
 #include <type_traits>
+#include <memory>
 #include <string>
 #include <fstream>
 #include <iostream>
 #include <CL/cl.hpp>
+
+#include <oclalgo/shared_array.h>
 
 namespace oclalgo {
 
@@ -31,23 +35,16 @@ enum DataType { IN, OUT, IN_OUT, LOCALE, VAR };
 
 template<typename T, oclalgo::DataType DT>
 struct cl_data_t {
-  cl_data_t()
-      : host_ptr(0),
-        size(0) {
+  cl_data_t(const oclalgo::shared_array<T>& array)
+      : host_array(array) {
   }
 
-  cl_data_t(const T& hostPtr, size_t size)
-      : host_ptr(hostPtr),
-        size(size) {
-  }
-
-  T host_ptr;
-  size_t size;
+  oclalgo::shared_array<T> host_array;
   static constexpr oclalgo::DataType io_type = DT;
 };
 
 /**
- * @brief Class for synchronization OpenCLQueue task with host thread
+ * @brief Class for synchronization OpenCLQueue task with host thread.
  */
 template<typename T>
 class cl_future {
@@ -71,7 +68,7 @@ class cl_future {
   virtual ~cl_future() = default;
 
   /**
-   * @brief Stop host thread and wait the end of OpenCL task,
+   * @brief Stop host thread and wait the end of OpenCL task.
    * then return the refreshed host data
    */
   virtual T get() {
@@ -79,7 +76,7 @@ class cl_future {
     return out_val_;
   }
   /**
-   * @brief Stop host thread and wait the end of OpenCL task
+   * @brief Stop host thread and wait the end of OpenCL task.
    */
   virtual void wait() const {
     event_.wait();
@@ -92,7 +89,7 @@ class cl_future {
 };
 
 /**
- * @brief Class for simple execution of OpenCL kernels
+ * @brief Class for simple execution of OpenCL kernels.
  *
  * Use OpenCL C++ Wrapper API. Provide a OpenCL task synchronization by cl_future<Args...>
  * objects, which have similar interface and functionality like std::future
@@ -104,7 +101,7 @@ class OpenCLQueue {
   OpenCLQueue& operator=(const OpenCLQueue&) = delete;
 
   /**
-   * @brief Add task in OpenCL in-order queue
+   * @brief Add task in OpenCL in-order queue.
    */
   template<typename First, typename ... Tail>
   auto AddTask(
@@ -244,26 +241,26 @@ void OpenCLQueue::SetKernelArgs(uint32_t argIndex, cl::Kernel* kernel,
   switch (First::io_type) {
     case oclalgo::IN:
       buffer = cl::Buffer(context_, CL_MEM_READ_ONLY | CL_MEM_COPY_HOST_PTR,
-                          clData.size, clData.host_ptr);
+                          clData.host_array.memsize(), clData.host_array.get());
       buffers->push_back(buffer);
       kernel->setArg(argIndex, buffer);
       break;
     case oclalgo::IN_OUT:
       buffer = cl::Buffer(context_, CL_MEM_READ_WRITE | CL_MEM_COPY_HOST_PTR,
-                          clData.size, clData.host_ptr);
+                          clData.host_array.memsize(), clData.host_array.get());
       buffers->push_back(buffer);
       kernel->setArg(argIndex, buffer);
       break;
     case oclalgo::OUT:
-      buffer = cl::Buffer(context_, CL_MEM_WRITE_ONLY, clData.size);
+      buffer = cl::Buffer(context_, CL_MEM_WRITE_ONLY, clData.host_array.memsize());
       buffers->push_back(buffer);
       kernel->setArg(argIndex, buffer);
       break;
     case oclalgo::LOCALE:
-      kernel->setArg(argIndex, cl::Local(clData.size));
+      kernel->setArg(argIndex, cl::Local(clData.host_array.memsize()));
       break;
     case oclalgo::VAR:
-      kernel->setArg(argIndex, *clData.host_ptr);
+      kernel->setArg(argIndex, clData.host_array[0]);
       break;
   }
 }
@@ -282,8 +279,9 @@ void OpenCLQueue::GetResults(uint32_t argIndex,
                              const std::vector<cl::Buffer>& buffers,
                              cl::Event* event, const First& clData) const {
   if (First::io_type == oclalgo::OUT || First::io_type == oclalgo::IN_OUT) {
-    queue_.enqueueReadBuffer(buffers[argIndex], CL_FALSE, 0, clData.size,
-                             clData.host_ptr, NULL, event);
+    queue_.enqueueReadBuffer(buffers[argIndex], CL_FALSE, 0,
+                             clData.host_array.memsize(), clData.host_array.get(),
+                             nullptr, event);
   }
 }
 
