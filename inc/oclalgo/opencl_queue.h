@@ -103,16 +103,13 @@ class OpenCLQueue {
   /**
    * @brief Add task in OpenCL in-order queue.
    */
-  template<typename First, typename ... Tail>
-  auto AddTask(
-      const std::string& pathToProgram,
-      const std::string& kernelName,
-      const cl::NDRange& offset,
-      const cl::NDRange& global,
-      const cl::NDRange& local,
-      const First& clData,
-      const Tail& ... args)
-      -> cl_future<decltype(std::tuple_cat(ReturnOutData(clData), ComposeOutTuple(args...)))>;
+  template<typename... Args>
+  auto AddTask(const std::string& pathToProgram,
+                            const std::string& kernelName,
+                            const cl::NDRange& offset,
+                            const cl::NDRange& global, const cl::NDRange& local,
+                            const Args&... args)
+                            -> cl_future<decltype(ComposeOutTuple(args...))>;
 
   static std::string OpenCLInfo(bool completeInfo);
   static std::string StatusStr(cl_int status);
@@ -131,6 +128,8 @@ class OpenCLQueue {
   void SetKernelArgs(uint32_t argIndex, cl::Kernel* kernel,
                      std::vector<cl::Buffer>* buffers,
                      const First& clData) const;
+  void SetKernelArgs(uint32_t argIndex, cl::Kernel* kernel,
+                     std::vector<cl::Buffer>* buffers) const;
   template<typename First, typename ... Tail>
   void GetResults(uint32_t argIndex, const std::vector<cl::Buffer>& buffers,
                   cl::Event* event, const First& clData,
@@ -138,6 +137,8 @@ class OpenCLQueue {
   template<typename First>
   void GetResults(uint32_t argIndex, const std::vector<cl::Buffer>& buffers,
                   cl::Event* event, const First& clData) const;
+  void GetResults(uint32_t argIndex, const std::vector<cl::Buffer>& buffers,
+                  cl::Event* event) const;
 
   size_t platform_id_;
   size_t device_id_;
@@ -166,23 +167,22 @@ auto ComposeOutTuple(const First& data) -> decltype(ReturnOutData(data)) {
   return ReturnOutData(data);
 }
 
+auto ComposeOutTuple() -> decltype(std::tuple<>()) {
+  return std::tuple<>();
+}
+
 template<typename First, typename ... Tail>
 auto ComposeOutTuple(const First& data, const Tail& ... args)
     -> decltype(std::tuple_cat(ReturnOutData(data), ComposeOutTuple(args...))) {
   return std::tuple_cat(ReturnOutData(data), ComposeOutTuple(args...));
 }
 
-template<typename First, typename ... Tail>
-auto OpenCLQueue::AddTask(
-    const std::string& pathToProgram,
-    const std::string& kernelName,
-    const cl::NDRange& offset,
-    const cl::NDRange& global,
-    const cl::NDRange& local,
-    const First& clData,
-    const Tail& ... args)
-    -> cl_future<decltype(std::tuple_cat(ReturnOutData(clData), ComposeOutTuple(args...)))> {
-
+template<typename... Args>
+auto OpenCLQueue::AddTask(const std::string& pathToProgram,
+                          const std::string& kernelName,
+                          const cl::NDRange& offset, const cl::NDRange& global,
+                          const cl::NDRange& local, const Args&... args)
+                          -> cl_future<decltype(ComposeOutTuple(args...))> {
   // load source code
   bool build_flag = false;
   if (programs_.find(pathToProgram) == programs_.end()) {
@@ -214,13 +214,13 @@ auto OpenCLQueue::AddTask(
   // fill OpenCL command queue
   std::vector<cl::Buffer> buffers;
   cl::Event event;
-  SetKernelArgs(0, &kernels_[kernel_id_str], &buffers, clData, args...);
+  SetKernelArgs(0, &kernels_[kernel_id_str], &buffers, args...);
   queue_.enqueueNDRangeKernel(kernels_[kernel_id_str], offset, global, local,
                               nullptr, &event);
-  GetResults(0, buffers, &event, clData, args...);
+  GetResults(0, buffers, &event, args...);
 
   // providing output data into the cl_future object
-  auto t = ComposeOutTuple(clData, args...);
+  auto t = ComposeOutTuple(args...);
   return cl_future<decltype(t)>(event, buffers, t);
 }
 
@@ -265,6 +265,10 @@ void OpenCLQueue::SetKernelArgs(uint32_t argIndex, cl::Kernel* kernel,
   }
 }
 
+void OpenCLQueue::SetKernelArgs(uint32_t /*argIndex*/, cl::Kernel* /*kernel*/,
+                                std::vector<cl::Buffer>* /*buffers*/) const {
+}
+
 template<typename First, typename ... Tail>
 void OpenCLQueue::GetResults(uint32_t argIndex,
                              const std::vector<cl::Buffer>& buffers,
@@ -283,6 +287,11 @@ void OpenCLQueue::GetResults(uint32_t argIndex,
                              clData.host_array.memsize(), clData.host_array.get(),
                              nullptr, event);
   }
+}
+
+void OpenCLQueue::GetResults(uint32_t /*argIndex*/,
+                             const std::vector<cl::Buffer>& /*buffers*/,
+                             cl::Event* /*event*/) const {
 }
 
 } // namespace oclalgo

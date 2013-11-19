@@ -37,7 +37,8 @@ TEST(OpenCLQueue, TryVectorAddKernel) {
     cl_data_t<int, oclalgo::OUT> d_c(c);
 
     auto future = queue.AddTask("vector_add.cl", "vector_add", cl::NullRange,
-                                cl::NDRange(el_count), cl::NullRange, d_a, d_b, d_c);
+                                cl::NDRange(el_count), cl::NullRange, d_a, d_b,
+                                d_c);
     std::tie(d_c) = future.get();
 
     // check results
