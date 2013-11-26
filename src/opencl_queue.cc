@@ -274,4 +274,17 @@ std::string OpenCLQueue::StatusStr(cl_int status) {
   }
 }
 
+void OpenCLQueue::GetResults(uint32_t /*argIndex*/,
+                             const std::vector<cl::Buffer>& /*buffers*/,
+                             cl::Event* /*event*/) const {
+}
+
+void OpenCLQueue::SetKernelArgs(uint32_t /*argIndex*/, cl::Kernel* /*kernel*/,
+                                std::vector<cl::Buffer>* /*buffers*/) const {
+}
+
+auto ComposeOutTuple() -> decltype(std::tuple<>()) {
+  return std::tuple<>();
+}
+
 } // namespace oclalgo

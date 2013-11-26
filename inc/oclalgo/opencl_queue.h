@@ -10,8 +10,8 @@
  *  Copyright 2013 Samsung R&D Institute Russia
  */
 
-#ifndef OCLALGO_OPENCLQUEUE_H_
-#define OCLALGO_OPENCLQUEUE_H_
+#ifndef OCLALGO_OPENCL_QUEUE_H_
+#define OCLALGO_OPENCL_QUEUE_H_
 
 #define __CL_ENABLE_EXCEPTIONS
 
@@ -49,43 +49,64 @@ struct cl_data_t {
 template<typename T>
 class cl_future {
  public:
-  cl_future(const cl::Event& event, const std::vector<cl::Buffer>& buffers,
-            const T& outVal)
-      : event_(event),
+  cl_future(const T& data, const std::vector<cl::Buffer>& buffers,
+            const cl::Event event)
+      : stored_data_(data),
         buffers_(buffers),
-        out_val_(outVal) {
+        event_(event),
+        is_event_set_(true) {
+  }
+
+  cl_future(T&& data, const std::vector<cl::Buffer>& buffers,
+            const cl::Event event)
+      : stored_data_(std::forward<T>(data)),
+        buffers_(buffers),
+        event_(event),
+        is_event_set_(true) {
+  }
+
+  cl_future(const T& data)
+      : stored_data_(data),
+        is_event_set_(false) {
   }
 
   cl_future(const cl_future&) = delete;
   cl_future& operator=(const cl_future&) = delete;
 
   cl_future(cl_future&& other)
-      : event_(other.event_),
+      : stored_data_(other.stored_data_),
         buffers_(other.buffers_),
-        out_val_(other.out_val_) {
+        event_(other.event_),
+        is_event_set_(other.is_event_set_) {
   }
 
   virtual ~cl_future() = default;
 
   /**
    * @brief Stop host thread and wait the end of OpenCL task.
-   * then return the refreshed host data
+   * @return Returns the refreshed host data
    */
   virtual T get() {
-    event_.wait();
-    return out_val_;
+    if (is_event_set_) event_.wait();
+    return stored_data_;
   }
   /**
    * @brief Stop host thread and wait the end of OpenCL task.
    */
   virtual void wait() const {
-    event_.wait();
+    if (is_event_set_) event_.wait();
   }
 
+  cl::Event event() const noexcept { return event_; }
+  bool is_event_set() const noexcept { return is_event_set_; }
+  const std::vector<cl::Buffer>& buffers() const noexcept { return buffers_; }
+  const T& stored_data() const noexcept { return stored_data_; }
+
  private:
-  cl::Event event_;
+  T stored_data_;
   std::vector<cl::Buffer> buffers_;
-  T out_val_;
+  cl::Event event_;
+  bool is_event_set_;
 };
 
 /**
@@ -150,25 +171,21 @@ class OpenCLQueue {
   std::unordered_map<std::string, cl::Kernel> kernels_;
 };
 
-template<typename T>
-typename std::enable_if<T::io_type != OUT && T::io_type != IN_OUT,
-std::tuple<>>::type ReturnOutData(const T&) {
+template<typename T, oclalgo::DataType DT>
+typename std::enable_if<DT != OUT && DT != IN_OUT,
+std::tuple<>>::type ReturnOutData(const cl_data_t<T, DT>&) {
   return std::tuple<>();
 }
 
-template<typename T>
-typename std::enable_if<T::io_type == OUT || T::io_type == IN_OUT,
-std::tuple<T>>::type ReturnOutData(const T& data) {
-   return std::make_tuple(data);
+template<typename T, oclalgo::DataType DT>
+typename std::enable_if<DT == OUT || DT == IN_OUT,
+std::tuple<shared_array<T>>>::type ReturnOutData(const cl_data_t<T, DT>& data) {
+   return std::make_tuple(data.host_array);
 }
 
 template<typename First>
 auto ComposeOutTuple(const First& data) -> decltype(ReturnOutData(data)) {
   return ReturnOutData(data);
-}
-
-auto ComposeOutTuple() -> decltype(std::tuple<>()) {
-  return std::tuple<>();
 }
 
 template<typename First, typename ... Tail>
@@ -195,7 +212,7 @@ auto OpenCLQueue::AddTask(const std::string& pathToProgram,
     // build program from source code
     programs_[pathToProgram] = cl::Program(context_, cl_source);
     try {
-      programs_[pathToProgram].build( { devices_[device_id_] }, "-D BLOCK_SIZE=2");
+      programs_[pathToProgram].build({ devices_[device_id_] });
     } catch (const cl::Error& e) {
       std::cout << "Build log:" << std::endl
           << programs_[pathToProgram].
@@ -221,7 +238,7 @@ auto OpenCLQueue::AddTask(const std::string& pathToProgram,
 
   // providing output data into the cl_future object
   auto t = ComposeOutTuple(args...);
-  return cl_future<decltype(t)>(event, buffers, t);
+  return cl_future<decltype(t)>(t, buffers, event);
 }
 
 template<typename First, typename ... Tail>
@@ -242,6 +259,7 @@ void OpenCLQueue::SetKernelArgs(uint32_t argIndex, cl::Kernel* kernel,
     case oclalgo::IN:
       buffer = cl::Buffer(context_, CL_MEM_READ_ONLY | CL_MEM_COPY_HOST_PTR,
                           clData.host_array.memsize(), clData.host_array.get());
+
       buffers->push_back(buffer);
       kernel->setArg(argIndex, buffer);
       break;
@@ -265,10 +283,6 @@ void OpenCLQueue::SetKernelArgs(uint32_t argIndex, cl::Kernel* kernel,
   }
 }
 
-void OpenCLQueue::SetKernelArgs(uint32_t /*argIndex*/, cl::Kernel* /*kernel*/,
-                                std::vector<cl::Buffer>* /*buffers*/) const {
-}
-
 template<typename First, typename ... Tail>
 void OpenCLQueue::GetResults(uint32_t argIndex,
                              const std::vector<cl::Buffer>& buffers,
@@ -289,11 +303,6 @@ void OpenCLQueue::GetResults(uint32_t argIndex,
   }
 }
 
-void OpenCLQueue::GetResults(uint32_t /*argIndex*/,
-                             const std::vector<cl::Buffer>& /*buffers*/,
-                             cl::Event* /*event*/) const {
-}
-
 } // namespace oclalgo
 
-#endif // OCLALGO_OPENCLQUEUE_H_
+#endif // OCLALGO_OPENCL_QUEUE_H_

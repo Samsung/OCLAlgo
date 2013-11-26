@@ -31,7 +31,8 @@ AC_SUBST(REVISION_NUMBER, [$(cd $srcdir && git rev-list HEAD --count)])
 AC_SUBST(AGE_NUMBER, [0])
 
 AM_COND_IF([TESTS], [
-    AC_CONFIG_LINKS([tests/vector_add.cl:tests/vector_add.cl])
+    AC_CONFIG_LINKS([tests/vector_add.cl:tests/vector_add.cl
+                     tests/hblas.cl:inc/oclalgo/hblas/hblas.cl])
 ])
 
 
