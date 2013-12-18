@@ -11,7 +11,6 @@
  */
 
 #include <gtest/gtest.h>
-//#include <oclalgo/opencl_queue.h>
 #include "inc/oclalgo/hblas/matrix.h"
 #include "src/gtest_main.cc"
 
@@ -81,7 +80,7 @@ TEST(Matrix, SubOperator) {
   EXPECT_FALSE(is_ocl_err) << "OpenCL Matrix<T>::operator-() test" << std::endl;
 }
 
-TEST(Matrix, MulOperator) {
+TEST(Matrix, MulOperatorInt) {
   uint32_t block_size = 4;
   oclalgo::hblas::Matrix<int> m1(4, 4, block_size), m2(4, 8, block_size);
   for (uint32_t i = 1; i <= m1.rows(); ++i)
@@ -106,8 +105,35 @@ TEST(Matrix, MulOperator) {
         is_ocl_err = true;
     }
   }
-  EXPECT_FALSE(is_host_err) << "Host Matrix<T>::operator*() test" << std::endl;
-  EXPECT_FALSE(is_ocl_err) << "OpenCL Matrix<T>::operator*() test" << std::endl;
+  EXPECT_FALSE(is_host_err) << "Host Matrix<int>::operator*() test" << std::endl;
+  EXPECT_FALSE(is_ocl_err) << "OpenCL Matrix<int>::operator*() test" << std::endl;
+}
+
+TEST(Matrix, MulOperatorFloat) {
+  uint32_t block_size = 1;
+  oclalgo::hblas::Matrix<float> m1(2, 2, block_size), m2(2, 2, block_size);
+  for (uint32_t i = 1; i <= m1.rows(); ++i)
+    for (uint32_t j = 1; j <= m1.cols(); ++j)
+      m1(i, j) = (i - 1) * m1.cols() + j + 0.5;
+  for (uint32_t i = 1; i <= m2.rows(); ++i)
+    for (uint32_t j = 1; j <= m2.cols(); ++j)
+      m2(i, j) = (i - 1) * m2.cols() + j + 0.5 + m1.cols() * m1.rows();
+
+  oclalgo::hblas::Matrix<float> host_res = m1 * m2;
+  oclalgo::hblas::Matrix<float> ocl_res = (m1.future() * m2.future()).get();
+  float gold_res[] = { 27.F, 31.F,
+                       53.F, 61.F };
+  bool is_host_err = false, is_ocl_err = false;
+  for (uint32_t i = 1; i <= host_res.rows(); ++i) {
+    for (uint32_t j = 1; j <= host_res.cols(); ++j) {
+      if (host_res(i, j) != gold_res[(i - 1) * host_res.cols() + j - 1])
+        is_host_err = true;
+      if (ocl_res(i, j) != gold_res[(i - 1) * host_res.cols() + j - 1])
+        is_ocl_err = true;
+    }
+  }
+  EXPECT_FALSE(is_host_err) << "Host Matrix<float>::operator*() test" << std::endl;
+  EXPECT_FALSE(is_ocl_err) << "OpenCL Matrix<float>::operator*() test" << std::endl;
 }
 
 TEST(Matrix, Transpose) {

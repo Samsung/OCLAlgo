@@ -202,6 +202,11 @@ Matrix<U> operator*(const Matrix<U>& m1, const Matrix<U>& m2) {
   return res;
 }
 
+template <typename T> std::string PrintType();
+template <> std::string PrintType<int>() { return "int"; }
+template <> std::string PrintType<float>() { return "float"; }
+template <> std::string PrintType<double>() { return "double"; }
+
 template<typename U>
 cl_future<Matrix<U>> operator+(const cl_future<Matrix<U>>& futureM1,
                                const cl_future<Matrix<U>>& futureM2) {
@@ -215,10 +220,12 @@ cl_future<Matrix<U>> operator+(const cl_future<Matrix<U>>& futureM1,
   Matrix<U> res(rows, cols);
   cl_data_t<U, oclalgo::OUT> dres(res.data());
 
+  char compile_options[512] = {0};
+  std::snprintf(compile_options, 512, "-D VAR_TYPE=%s", PrintType<U>().c_str());
   OpenCLQueue& queue = DeviceQueue::getInstance();
-  auto future = queue.AddTask("hblas.cl", "matrix_add", "", cl::NullRange,
-                              cl::NDRange(rows, cols), cl::NullRange, dm1, dm2,
-                              dres);
+  auto future = queue.AddTask("hblas.cl", "matrix_add", compile_options,
+                              cl::NullRange, cl::NDRange(rows, cols),
+                              cl::NullRange, dm1, dm2, dres);
   return cl_future<Matrix<U>>(std::move(res), future.buffers(), future.event());
 }
 
@@ -235,10 +242,12 @@ cl_future<Matrix<U>> operator-(const cl_future<Matrix<U>>& futureM1,
   Matrix<U> res(rows, cols);
   cl_data_t<U, oclalgo::OUT> dres(res.data());
 
+  char compile_options[512] = {0};
+  std::snprintf(compile_options, 512, "-D VAR_TYPE=%s", PrintType<U>().c_str());
   OpenCLQueue& queue = DeviceQueue::getInstance();
-  auto future = queue.AddTask("hblas.cl", "matrix_sub", "", cl::NullRange,
-                              cl::NDRange(rows, cols), cl::NullRange, dm1, dm2,
-                              dres);
+  auto future = queue.AddTask("hblas.cl", "matrix_sub", compile_options,
+                              cl::NullRange, cl::NDRange(rows, cols),
+                              cl::NullRange, dm1, dm2, dres);
   return cl_future<Matrix<U>>(std::move(res), future.buffers(), future.event());
 }
 
@@ -256,16 +265,16 @@ cl_future<Matrix<U>> operator*(const cl_future<Matrix<U>>& futureM1,
   cl_data_t<U, oclalgo::IN> dm2(futureM2.stored_data().data());
   oclalgo::shared_array<U> loc(nullptr, block_size * block_size);
   cl_data_t<U, oclalgo::LOCALE> dloc(loc);
-  oclalgo::shared_array<U> cl_m1_cols(new int(m1_cols), 1);
-  cl_data_t<U, oclalgo::VAR> dm1_cols(cl_m1_cols);
-  oclalgo::shared_array<U> cl_m2_cols(new int(m2_cols), 1);
-  cl_data_t<U, oclalgo::VAR> dm2_cols(cl_m2_cols);
+  oclalgo::shared_array<int> cl_m1_cols(new int(m1_cols), 1);
+  cl_data_t<int, oclalgo::VAR> dm1_cols(cl_m1_cols);
+  oclalgo::shared_array<int> cl_m2_cols(new int(m2_cols), 1);
+  cl_data_t<int, oclalgo::VAR> dm2_cols(cl_m2_cols);
   Matrix<U> res(m1_rows, m2_cols);
   cl_data_t<U, oclalgo::OUT> dres(res.data());
 
-  char buff[512] = {0};
-  std::snprintf(buff, 512, "-D BLOCK_SIZE=%d", block_size);
-  std::string compile_options = buff;
+  char compile_options[512] = {0};
+  std::snprintf(compile_options, 512, "-D BLOCK_SIZE=%d -D VAR_TYPE=%s",
+                block_size, PrintType<U>().c_str());
   OpenCLQueue& queue = DeviceQueue::getInstance();
   auto future = queue.AddTask("hblas.cl", "matrix_mul", compile_options,
                               cl::NullRange, cl::NDRange(m2_cols, m1_rows),
