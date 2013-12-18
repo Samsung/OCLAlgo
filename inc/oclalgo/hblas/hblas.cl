@@ -22,7 +22,9 @@ kernel void matrix_sub(global const int *A, global const int *B,
   C[idx] = A[idx] - B[idx];
 }
 
-#define BLOCK_SIZE 4
+#ifndef BLOCK_SIZE
+#define BLOCK_SIZE 32
+#endif
 
 kernel void matrix_mul(global const int *A, global const int *B, 
                        global int *C, local int *As, local int *Bs, 

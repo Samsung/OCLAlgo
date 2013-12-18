@@ -33,7 +33,7 @@ TEST(OpenCLQueue, VectorAdd) {
     cl_data_t<int, oclalgo::IN> d_b(b);
     cl_data_t<int, oclalgo::OUT> d_c(c);
 
-    auto future = queue.AddTask("vector_add.cl", "vector_add", cl::NullRange,
+    auto future = queue.AddTask("vector_add.cl", "vector_add", "", cl::NullRange,
                                 cl::NDRange(el_count), cl::NullRange, d_a, d_b,
                                 d_c);
     std::tie(c) = future.get();
@@ -71,7 +71,7 @@ TEST(OpenCLQueue, MatrixAdd) {
     cl_data_t<int, oclalgo::IN> d_b(b);
     cl_data_t<int, oclalgo::OUT> d_c(c);
 
-    auto future = queue.AddTask("hblas.cl", "matrix_add", cl::NullRange,
+    auto future = queue.AddTask("hblas.cl", "matrix_add", "", cl::NullRange,
                                 cl::NDRange(rows, cols), cl::NullRange, d_a, d_b,
                                 d_c);
     std::tie(c) = future.get();

@@ -60,41 +60,54 @@ class Matrix {
  public:
   Matrix()
       : rows_(0),
-        cols_(0) {
+        cols_(0),
+        block_size_(0) {
   }
 
-  Matrix(uint32_t rows, uint32_t cols)
+  Matrix(uint32_t rows, uint32_t cols, uint32_t block_size = 0)
       : rows_(rows),
         cols_(cols),
-        data_(new T[rows_ * cols_], rows_ * cols_) {
+        data_(new T[rows_ * cols_], rows_ * cols_),
+        block_size_(block_size) {
   }
 
   Matrix(uint32_t rows, uint32_t cols, const oclalgo::shared_array<T>& array)
       : rows_(rows),
         cols_(cols),
-        data_(array) {
+        data_(array),
+        block_size_(0) {
+  }
+
+  Matrix(uint32_t rows, uint32_t cols, uint32_t block_size, const oclalgo::shared_array<T>& array)
+      : rows_(rows),
+        cols_(cols),
+        data_(array),
+        block_size_(block_size) {
   }
 
   Matrix(const Matrix<T>& m)
       : rows_(m.rows_),
         cols_(m.cols_),
-        data_(new T[rows_ * cols_], rows_ * cols_) {
+        data_(new T[rows_ * cols_], rows_ * cols_),
+        block_size_(m.block_size_) {
     std::copy(m.data_.get(), m.data_.get() + m.rows_ * m.cols_, data_.get());
   }
 
   Matrix(Matrix<T>&& m)
       : rows_(m.rows_),
         cols_(m.cols_),
-        data_(m.data_) {
+        data_(m.data_),
+        block_size_(m.block_size_) {
   }
 
   Matrix<T>& operator=(const Matrix<T>& m) {
     if (this != &m) {
-      rows_ = m.rows();
-      cols_ = m.cols();
+      rows_ = m.rows_;
+      cols_ = m.cols_;
       T* ptr = new T[rows_ * cols_];
       std::copy(m.data_.get(), m.data_.get() + m.rows_ * m.cols_, ptr);
       data_.reset(ptr, rows_ * cols_);
+      block_size_ = m.block_size_;
     }
     return *this;
   }
@@ -103,14 +116,24 @@ class Matrix {
     rows_ = rows;
     cols_ = cols;
     data_.reset(new T[rows_ * cols_], rows_ * cols_);
+    block_size_ = 0;
+  }
+
+  void resize(uint32_t rows, uint32_t cols, uint32_t block_size) {
+    rows_ = rows;
+    cols_ = cols;
+    data_.reset(new T[rows_ * cols_], rows_ * cols_);
+    block_size_ = block_size;
   }
 
   uint32_t rows() const noexcept { return rows_; }
   uint32_t cols() const noexcept { return cols_; }
   oclalgo::shared_array<T> data() const noexcept { return data_; }
+  uint32_t block_size() const noexcept { return block_size_; }
+  uint32_t& block_size() noexcept { return block_size_; }
 
   cl_future<Matrix<T>> future() const noexcept {
-    Matrix<T> m(this->rows(), this->cols(), this->data());
+    Matrix<T> m(rows_, cols_, block_size_, data_);
     return cl_future<Matrix<T>>(std::move(m));
   }
 
@@ -130,6 +153,7 @@ class Matrix {
   uint32_t rows_;
   uint32_t cols_;
   oclalgo::shared_array<T> data_;
+  uint32_t block_size_;
 };
 
 template<typename T>
@@ -192,7 +216,7 @@ cl_future<Matrix<U>> operator+(const cl_future<Matrix<U>>& futureM1,
   cl_data_t<U, oclalgo::OUT> dres(res.data());
 
   OpenCLQueue& queue = DeviceQueue::getInstance();
-  auto future = queue.AddTask("hblas.cl", "matrix_add", cl::NullRange,
+  auto future = queue.AddTask("hblas.cl", "matrix_add", "", cl::NullRange,
                               cl::NDRange(rows, cols), cl::NullRange, dm1, dm2,
                               dres);
   return cl_future<Matrix<U>>(std::move(res), future.buffers(), future.event());
@@ -212,7 +236,7 @@ cl_future<Matrix<U>> operator-(const cl_future<Matrix<U>>& futureM1,
   cl_data_t<U, oclalgo::OUT> dres(res.data());
 
   OpenCLQueue& queue = DeviceQueue::getInstance();
-  auto future = queue.AddTask("hblas.cl", "matrix_sub", cl::NullRange,
+  auto future = queue.AddTask("hblas.cl", "matrix_sub", "", cl::NullRange,
                               cl::NDRange(rows, cols), cl::NullRange, dm1, dm2,
                               dres);
   return cl_future<Matrix<U>>(std::move(res), future.buffers(), future.event());
@@ -227,10 +251,9 @@ cl_future<Matrix<U>> operator*(const cl_future<Matrix<U>>& futureM1,
   uint32_t m2_rows = futureM2.stored_data().rows();
   assert(m1_cols == m2_rows);
 
+  uint32_t block_size = futureM1.stored_data().block_size();
   cl_data_t<U, oclalgo::IN> dm1(futureM1.stored_data().data());
   cl_data_t<U, oclalgo::IN> dm2(futureM2.stored_data().data());
-  // TODO: add in OpenCLQueue::AddTask() argument, which sets command line
-  uint32_t block_size = 4; // should be equal to BLOCK_SIZE in hblas.cl
   oclalgo::shared_array<U> loc(nullptr, block_size * block_size);
   cl_data_t<U, oclalgo::LOCALE> dloc(loc);
   oclalgo::shared_array<U> cl_m1_cols(new int(m1_cols), 1);
@@ -240,11 +263,14 @@ cl_future<Matrix<U>> operator*(const cl_future<Matrix<U>>& futureM1,
   Matrix<U> res(m1_rows, m2_cols);
   cl_data_t<U, oclalgo::OUT> dres(res.data());
 
+  char buff[512] = {0};
+  std::snprintf(buff, 512, "-D BLOCK_SIZE=%d", block_size);
+  std::string compile_options = buff;
   OpenCLQueue& queue = DeviceQueue::getInstance();
-  auto future = queue.AddTask("hblas.cl", "matrix_mul", cl::NullRange,
-                              cl::NDRange(m2_cols, m1_rows),
-                              cl::NDRange(block_size, block_size), dm1, dm2, dres, dloc, dloc,
-                              dm1_cols, dm2_cols);
+  auto future = queue.AddTask("hblas.cl", "matrix_mul", compile_options,
+                              cl::NullRange, cl::NDRange(m2_cols, m1_rows),
+                              cl::NDRange(block_size, block_size), dm1, dm2,
+                              dres, dloc, dloc, dm1_cols, dm2_cols);
   return cl_future<Matrix<U>>(std::move(res), future.buffers(), future.event());
 }
 

@@ -82,9 +82,8 @@ TEST(Matrix, SubOperator) {
 }
 
 TEST(Matrix, MulOperator) {
-  // TODO: make matrix multiplication independent from BLOCK_SIZE
-  // Matrix rows and cols number should be equal to BLOCK_SIZE * N
-  oclalgo::hblas::Matrix<int> m1(4, 4), m2(4, 8);
+  uint32_t block_size = 4;
+  oclalgo::hblas::Matrix<int> m1(4, 4, block_size), m2(4, 8, block_size);
   for (uint32_t i = 1; i <= m1.rows(); ++i)
     for (uint32_t j = 1; j <= m1.cols(); ++j)
       m1(i, j) = (i - 1) * m1.cols() + j;

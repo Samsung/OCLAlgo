@@ -59,7 +59,7 @@ class cl_future {
 
   cl_future(T&& data, const std::vector<cl::Buffer>& buffers,
             const cl::Event event)
-      : stored_data_(std::forward<T>(data)),
+      : stored_data_(std::move(data)),
         buffers_(buffers),
         event_(event),
         is_event_set_(true) {
@@ -125,12 +125,11 @@ class OpenCLQueue {
    * @brief Add task in OpenCL in-order queue.
    */
   template<typename... Args>
-  auto AddTask(const std::string& pathToProgram,
-                            const std::string& kernelName,
-                            const cl::NDRange& offset,
-                            const cl::NDRange& global, const cl::NDRange& local,
-                            const Args&... args)
-                            -> cl_future<decltype(ComposeOutTuple(args...))>;
+  auto AddTask(const std::string& pathToProgram, const std::string& kernelName,
+               const std::string& compileOptions, const cl::NDRange& offset,
+               const cl::NDRange& global, const cl::NDRange& local,
+               const Args&... args)
+               -> cl_future<decltype(ComposeOutTuple(args...))>;
 
   static std::string OpenCLInfo(bool completeInfo);
   static std::string StatusStr(cl_int status);
@@ -197,12 +196,14 @@ auto ComposeOutTuple(const First& data, const Tail& ... args)
 template<typename... Args>
 auto OpenCLQueue::AddTask(const std::string& pathToProgram,
                           const std::string& kernelName,
+                          const std::string& compileOptions,
                           const cl::NDRange& offset, const cl::NDRange& global,
                           const cl::NDRange& local, const Args&... args)
                           -> cl_future<decltype(ComposeOutTuple(args...))> {
   // load source code
   bool build_flag = false;
-  if (programs_.find(pathToProgram) == programs_.end()) {
+  std::string program_id = pathToProgram + compileOptions;
+  if (programs_.find(program_id) == programs_.end()) {
     std::ifstream source_file(pathToProgram);
     std::string source_code(std::istreambuf_iterator<char>(source_file),
                             (std::istreambuf_iterator<char>()));
@@ -210,9 +211,10 @@ auto OpenCLQueue::AddTask(const std::string& pathToProgram,
         1, std::make_pair(source_code.c_str(), source_code.length() + 1));
 
     // build program from source code
-    programs_[pathToProgram] = cl::Program(context_, cl_source);
+    programs_[program_id] = cl::Program(context_, cl_source);
     try {
-      programs_[pathToProgram].build({ devices_[device_id_] });
+      programs_[program_id].build({ devices_[device_id_] },
+                                  compileOptions.c_str());
     } catch (const cl::Error& e) {
       std::cout << "Build log:" << std::endl
           << programs_[pathToProgram].
@@ -222,17 +224,17 @@ auto OpenCLQueue::AddTask(const std::string& pathToProgram,
     build_flag = true;
   }
   // create OpenCL kernel
-  auto kernel_id_str = pathToProgram + "; " + kernelName;
-  if (build_flag || kernels_.find(kernel_id_str) == kernels_.end()) {
-    kernels_[kernel_id_str] = cl::Kernel(programs_[pathToProgram],
+  std::string kernel_id = program_id + "; " + kernelName;
+  if (build_flag || kernels_.find(kernel_id) == kernels_.end()) {
+    kernels_[kernel_id] = cl::Kernel(programs_[program_id],
                                          kernelName.c_str());
   }
 
   // fill OpenCL command queue
   std::vector<cl::Buffer> buffers;
   cl::Event event;
-  SetKernelArgs(0, &kernels_[kernel_id_str], &buffers, args...);
-  queue_.enqueueNDRangeKernel(kernels_[kernel_id_str], offset, global, local,
+  SetKernelArgs(0, &kernels_[kernel_id], &buffers, args...);
+  queue_.enqueueNDRangeKernel(kernels_[kernel_id], offset, global, local,
                               nullptr, &event);
   GetResults(0, buffers, &event, args...);
 
