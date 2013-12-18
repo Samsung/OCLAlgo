@@ -31,8 +31,10 @@
 
 namespace oclalgo {
 
+/** @brief Types of argument in OpenCL kernel. */
 enum DataType { IN, OUT, IN_OUT, LOCALE, VAR };
 
+/** @brief Class for wrapping OpenCL kernel data. */
 template<typename T, oclalgo::DataType DT>
 struct cl_data_t {
   cl_data_t(const oclalgo::shared_array<T>& array)
@@ -43,12 +45,15 @@ struct cl_data_t {
   static constexpr oclalgo::DataType io_type = DT;
 };
 
-/**
- * @brief Class for synchronization OpenCLQueue task with host thread.
- */
+/** @brief Class for synchronization OpenCLQueue task with host thread. */
 template<typename T>
 class cl_future {
  public:
+  /** @brief Constructor of cl_future.
+   *  @param data stored object
+   *  @param buffers OpenCL Buffer objects
+   *  @param event OpenCL event for task synchronization
+   */
   cl_future(const T& data, const std::vector<cl::Buffer>& buffers,
             const cl::Event event)
       : stored_data_(data),
@@ -84,15 +89,13 @@ class cl_future {
 
   /**
    * @brief Stop host thread and wait the end of OpenCL task.
-   * @return Returns the refreshed host data
+   * @return Returns the refreshed host data.
    */
   virtual T get() {
     if (is_event_set_) event_.wait();
     return stored_data_;
   }
-  /**
-   * @brief Stop host thread and wait the end of OpenCL task.
-   */
+  /** @brief Stop host thread and wait the end of OpenCL task. */
   virtual void wait() const {
     if (is_event_set_) event_.wait();
   }
@@ -123,6 +126,38 @@ class OpenCLQueue {
 
   /**
    * @brief Add task in OpenCL in-order queue.
+   *
+   * Code example:
+   * @code{.cpp}
+   * // opencl_program.cl
+   * kernel void vector_add(global const int *A, global const int *B,
+   *                        global int *C) {
+   *   int i = get_global_id(0);
+   *   C[i] = A[i] + B[i];
+   * }
+   *
+   * // your_source_file.cc
+   * // ...
+   * const int vector_size = 1024;
+   * shared_array<int> a(new int[vector_size], vector_size);
+   * shared_array<int> b(new int[vector_size], vector_size);
+   * shared_array<int> c(new int[vector_size], vector_size);
+   * // init a and b vectors...
+   * cl_data_t<int, oclalgo::IN>  d_a(a);
+   * cl_data_t<int, oclalgo::IN>  d_b(b);
+   * cl_data_t<int, oclalgo::OUT> d_c(c);
+   * auto future = queue.AddTask("vector_add.cl", "vector_add", "", cl::NullRange,
+   *                             cl::NDRange(el_count), cl::NullRange, d_a, d_b, d_c);
+   * std::tie(c) = future.get();
+   * @endcode
+   *
+   * @param pathToProgram path to OpenCL program
+   * @param kernelName kernel name in OpenCL program (without args and braces)
+   * @param compileOptions compile options to build OpenCL program
+   * @param offset offset for OpenCL global
+   * @param global size of OpenCL global grid
+   * @param local size of OpenCL group grid
+   * @param args arguments to launch OpenCL kernel
    */
   template<typename... Args>
   auto AddTask(const std::string& pathToProgram, const std::string& kernelName,
@@ -131,12 +166,16 @@ class OpenCLQueue {
                const Args&... args)
                -> cl_future<decltype(ComposeOutTuple(args...))>;
 
+  /** @brief Return info about available OpenCL devices. */
   static std::string OpenCLInfo(bool completeInfo);
+  /** @brief Return status string by the error code. */
   static std::string StatusStr(cl_int status);
 
  private:
+  /** @brief Return info about OpenCL platform by platformId. */
   static std::string PlatformInfo(const std::vector<cl::Platform>& platforms,
                                   size_t platformId, bool completeInfo);
+  /** @brief Return info about OpenCL device by deviceId. */
   static std::string DeviceInfo(const std::vector<cl::Device>& devices,
                                 size_t deviceId, bool completeInfo);
 

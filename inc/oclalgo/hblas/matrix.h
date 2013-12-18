@@ -27,12 +27,14 @@ namespace oclalgo {
 
 namespace hblas {
 
+/** @brief Singleton for providing access to OpenCLQueue object. */
 class DeviceQueue {
  public:
   DeviceQueue() = delete;
   DeviceQueue(const DeviceQueue&) = delete;
   void operator=(const DeviceQueue&) = delete;
 
+  /** @brief Provide an instance of OpenCLQueue object to launch tasks. */
   static OpenCLQueue& getInstance() {
     static OpenCLQueue queue("Intel(R) OpenCL", "Intel(R)");
     return queue;
@@ -112,6 +114,7 @@ class Matrix {
     return *this;
   }
 
+  /** @brief Resize matrix by new one with specified number of rows and cols. */
   void resize(uint32_t rows, uint32_t cols) {
     rows_ = rows;
     cols_ = cols;
@@ -119,6 +122,10 @@ class Matrix {
     block_size_ = 0;
   }
 
+  /**
+   * @brief Resize matrix by new one with specified number of rows, cols and
+   *        block_size.
+   */
   void resize(uint32_t rows, uint32_t cols, uint32_t block_size) {
     rows_ = rows;
     cols_ = cols;
@@ -132,21 +139,35 @@ class Matrix {
   uint32_t block_size() const noexcept { return block_size_; }
   uint32_t& block_size() noexcept { return block_size_; }
 
+  /** @brief Return cl_future to launch OpenCL calculations using operator+/-/*. */
   cl_future<Matrix<T>> future() const noexcept {
     Matrix<T> m(rows_, cols_, block_size_, data_);
     return cl_future<Matrix<T>>(std::move(m));
   }
 
+  /**
+   * @brief Return matrix element in position (i, j).
+   *
+   * i is in range [1, rows number]
+   * j is in range [1, columns number]
+   */
   const T& operator()(uint32_t i, uint32_t j) const noexcept {
     assert(i >= 1 && j >= 1 && i <= rows_ && j <= cols_);
     return data_[(i - 1) * cols_ + (j - 1)];
   }
 
+  /**
+   * @brief Return reference for matrix element in position (i, j).
+   *
+   * i is in range [1, rows number]
+   * j is in range [1, columns number]
+   */
   T& operator()(uint32_t i, uint32_t j) noexcept {
     assert(i >= 1 && j >= 1 && i <= rows_ && j <= cols_);
     return data_[(i - 1) * cols_ + (j - 1)];
   }
 
+  /** @brief Transpose matrix. */
   void transpose();
 
  private:

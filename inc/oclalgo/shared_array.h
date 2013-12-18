@@ -14,6 +14,7 @@
 
 namespace oclalgo {
 
+/** @brief Providing shared array storage. */
 template<typename T>
 class shared_array {
  public:
