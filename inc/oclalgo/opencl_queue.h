@@ -10,6 +10,69 @@
  *  Copyright 2013 Samsung R&D Institute Russia
  */
 
+/*! @mainpage OCLAlgo framework
+ *
+ * @section Brief
+ *
+ * Framework based on C++11 and OpenCL API to provide simple access to OpenCL
+ * devices for asynchronous calculations (for example, matrix multiplication).
+ *
+ * @section Details
+ *
+ * Contains OpenCLQueue and Matrix classes.
+ *
+ * OpenCLQueue provides simple interface for starting OpenCL tasks.
+ *
+ * <i>Code example:</i>
+ * @code{.cpp}
+ * OpenCLQueue queue("Intel(R) OpenCL", "Intel(R)");
+ *
+ * // allocate host data
+ * shared_array<int> input_a(new int[1024], 1024);
+ * shared_array<int> input_b(new int[1024], 1024);
+ * shared_array<int> output (new int[1024], 1024);
+ *
+ * // ...host data initiallization...
+ *
+ * // initialize device data by host array and I/O specificator
+ * cl_data_t<int, oclalgo::IN>  device_input_a(input_a);
+ * cl_data_t<int, oclalgo::IN>  device_input_b(input_b);
+ * cl_data_t<int, oclalgo::OUT> device_output(output);
+ *
+ * // start OpenCL task
+ * auto future = queue.AddTask("vector_add.cl", "vector_add", "", cl::NullRange,
+ *                             cl::NDRange(1024), cl::NullRange, device_input_a,
+ *                             device_input_b, device_output);
+ *
+ * // get results of calculations as std::tuple of output parameters
+ * std::tie(output) = future.get();
+ * @endcode
+ *
+ * Matrix class provides asynchronous operations using OpenCL.
+ *
+ * <i>Code example:</i>
+ * @code{.cpp}
+ * Matrix<int> a(32, 32), b(32, 32), c(32, 16), d(32, 16);
+ *
+ * // ...host matrices initialization...
+ *
+ * // load OpenCL device
+ * auto future = (a.future() + b.future()) * c.future();
+ *
+ * // ...make some other calculations on host side...
+ *
+ * // get results
+ * d = future.get();
+ * @endcode
+ *
+ * @section Requirements
+ *
+ * <ul>
+ * <li>C++11 compatible compiler (g++-4.8 was used during the development)</li>
+ * <li>OpenCL drivers for your device (OpenCL version >= 1.1)</li>
+ * </ul>
+ */
+
 #ifndef OCLALGO_OPENCL_QUEUE_H_
 #define OCLALGO_OPENCL_QUEUE_H_
 
