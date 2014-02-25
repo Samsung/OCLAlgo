@@ -23,7 +23,7 @@
 #  (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS
 #  SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
-AC_INIT(OCLAlgo, 1.0)
+AC_INIT(OCLAlgo, 1.1)
 m4_include([common.ac])
 # Libtool -version-info
 AC_SUBST(INTERFACE_VERSION, [0])
@@ -31,8 +31,8 @@ AC_SUBST(REVISION_NUMBER, [$(cd $srcdir && git rev-list HEAD --count)])
 AC_SUBST(AGE_NUMBER, [0])
 
 AM_COND_IF([TESTS], [
-    AC_CONFIG_LINKS([tests/vector_add.cl:tests/vector_add.cl
-                     tests/hblas.cl:inc/oclalgo/hblas/hblas.cl])
+    AC_CONFIG_LINKS([tests/vector.cl:inc/oclalgo/vector.cl
+                     tests/matrix.cl:inc/oclalgo/matrix.cl])
 ])
 
 

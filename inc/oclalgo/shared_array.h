@@ -1,5 +1,5 @@
 /*! @file shared_array.h
- *  @brief Implementation of template class oclalgo::shared_array.
+ *  @brief Contains oclalgo::shared_array class.
  *  @author Senin Dmitry <d.senin@samsung.com>
  *  @version 1.0
  *
@@ -7,84 +7,155 @@
  *  Copyright 2013 Samsung R&D Institute Russia
  */
 
-#ifndef OCLALGO_SHARED_ARRAY_H_
-#define OCLALGO_SHARED_ARRAY_H_
+#ifndef INC_OCLALGO_SHARED_ARRAY_H_
+#define INC_OCLALGO_SHARED_ARRAY_H_
 
 #include <algorithm>
+#include <memory>
 
 namespace oclalgo {
 
-/** @brief Providing shared array storage. */
+/** @brief Class to provide shared array storage. */
 template<typename T>
 class shared_array {
  public:
   typedef T element_type;
-  shared_array() : size_(0) {
-  }
 
-  shared_array(T* arrayPtr, size_t size)
-      : sptr_(arrayPtr, std::default_delete<T[]>()),
-        size_(size) {
-  }
+  shared_array();
+  /** @brief Creates shared array with corresponding size. */
+  explicit shared_array(size_t size);
+  /** @brief Creates shared array based on raw pointer and data size. */
+  shared_array(T* ptr, size_t size);
+  /** @brief Creates shared array based on shared pointer and data size. */
+  shared_array(const std::shared_ptr<T>& sp, size_t size);
 
-  template<typename D>
-  shared_array(T* arrayPtr, size_t size, const D& del)
-      : sptr_(arrayPtr, del),
-        size_(size) {
-  }
+  shared_array(const shared_array<T>& array);
+  shared_array<T>& operator=(const shared_array<T>& array);
 
-  shared_array(const oclalgo::shared_array<T>& array)
-      : sptr_(array.sptr_),
-        size_(array.size_) {
-  }
+  /** @brief Swaps data of this array with array in argument. */
+  inline void swap(shared_array<T>& array);
 
-  shared_array& operator=(const oclalgo::shared_array<T>& array) {
-    if (array != *this) {
-      sptr_ = array.sptr_;
-      size_ = array.size_;
-    }
-    return *this;
-  }
+  /** @brief Resets data of shared array. */
+  inline void reset();
 
-  void reset() {
-    sptr_.reset();
-    size_ = 0;
-  }
+  /*!
+   * @brief Resets data of shared array to corresponding shared pointer and
+   * data size.
+   */
 
-  void reset(T* arrayPtr, size_t size) {
-    sptr_.reset(arrayPtr, std::default_delete<T[]>());
-    size_ = size;
-  }
+  inline void reset(const std::shared_ptr<T>& sp, size_t size);
+  /*!
+   * @brief Resets data of shared array to corresponding raw pointer and
+   * data size.
+   */
+  inline void reset(T* ptr, size_t size);
 
-  template<typename D>
-  void reset(T* arrayPtr, size_t size, const D& del) {
-    sptr_.reset(arrayPtr, del);
-    size_ = size;
-  }
+  const T& operator[](std::ptrdiff_t i) const noexcept;
+  T& operator[](std::ptrdiff_t i) noexcept;
 
-  const T& operator[](std::ptrdiff_t i) const noexcept {
-    return *(sptr_.get() + i);
-  }
-  T& operator[](std::ptrdiff_t i) noexcept {
-    return *(sptr_.get() + i);
-  }
+  /** @brief Checks for the existence of data. */
+  operator bool() const noexcept;
+  /** @brief Convert data pointer to const data pointer. */
+  operator shared_array<const T>() const;
 
-  T* get() const noexcept { return sptr_.get(); }
-  bool unique() const noexcept { return sptr_.unique(); }
-  long use_count() const noexcept { return sptr_.use_count(); }
-
-  void swap(shared_array<T>& array) {
-    sptr_.swap(array.sptr_);
-    std::swap(size_, array.size_);
-  }
-
+  /** @brief Returns shared pointer to array data. */
+  std::shared_ptr<T> get() const noexcept { return sp_; }
+  /** @brief Returns raw pointer to array data. */
+  T* get_raw() const noexcept { return sp_.get(); }
+  /** @brief Returns true if this shared array data is unique. */
+  bool unique() const noexcept { return sp_.unique(); }
+  /** @brief Returns number of references on shared array data. */
+  int use_count() const noexcept { return sp_.use_count(); }
+  /** @brief Returns number of elements in shared array. */
   size_t size() const noexcept { return size_; }
+  /** @brief Returns memory size occupied by shared array. */
   size_t memsize() const noexcept { return sizeof(T) * size_; }
 
  private:
-  std::shared_ptr<T> sptr_;  // ptr to the shared memory, which contains array
-  size_t size_;              // number of elements in array
+  std::shared_ptr<T> sp_;  // shared memory, which contains host array
+  size_t size_;            // number of elements in array
 };
+
+template <typename T>
+shared_array<T>::shared_array() : size_(0) {
+}
+
+template <typename T>
+shared_array<T>::shared_array(size_t size)
+    : sp_(new T[size], std::default_delete<T[]>()),
+      size_(size) {
+}
+
+template <typename T>
+shared_array<T>::shared_array(T* ptr, size_t size)
+    : sp_(ptr, std::default_delete<T[]>()),
+      size_(size) {
+}
+
+template <typename T>
+shared_array<T>::shared_array(const std::shared_ptr<T>& sp, size_t size)
+    : sp_(sp),
+      size_(size) {
+}
+
+template <typename T>
+shared_array<T>::shared_array(const shared_array<T>& array)
+    : sp_(array.sp_),
+      size_(array.size_) {
+}
+
+template <typename T>
+shared_array<T>& shared_array<T>::operator=(const shared_array<T>& array) {
+  if (this != &array) {
+    sp_ = array.sp_;
+    size_ = array.size_;
+  }
+  return *this;
+}
+
+template <typename T>
+inline void shared_array<T>::reset() {
+  sp_.reset();
+  size_ = 0;
+}
+
+template <typename T>
+inline void shared_array<T>::reset(const std::shared_ptr<T>& sp, size_t size) {
+  sp_ = sp;
+  size_ = size;
+}
+
+template <typename T>
+inline void shared_array<T>::reset(T* ptr, size_t size) {
+  sp_.reset(ptr, std::default_delete<T[]>());
+  size_ = size;
+}
+
+template <typename T>
+inline void shared_array<T>::swap(shared_array<T>& array) {
+  sp_.swap(array.sp_);
+  std::swap(size_, array.size_);
+}
+
+template <typename T>
+const T& shared_array<T>::operator[](std::ptrdiff_t i) const noexcept {
+  return *(sp_.get() + i);
+}
+
+template <typename T>
+T& shared_array<T>::operator[](std::ptrdiff_t i) noexcept {
+  return *(sp_.get() + i);
+}
+
+template <typename T>
+shared_array<T>::operator bool() const noexcept {
+  return sp_.get() != nullptr;
+}
+
+template <typename T>
+shared_array<T>::operator shared_array<const T>() const {
+  return shared_array<const T>(sp_, size_);
+}
 
 template<class T>
 bool operator==(const oclalgo::shared_array<T>& a,
@@ -97,14 +168,12 @@ bool operator==(const oclalgo::shared_array<T>& a,
 }
 
 template<class T>
-bool operator!=(const oclalgo::shared_array<T>& a,
-                const oclalgo::shared_array<T>& b) {
+bool operator!=(const shared_array<T>& a, const shared_array<T>& b) {
   return !(a == b);
 }
 
 template<class T>
-bool operator<(const oclalgo::shared_array<T>& a,
-               const oclalgo::shared_array<T>& b) {
+bool operator<(const shared_array<T>& a, const shared_array<T>& b) {
   if (a.size() < b.size()) return true;
   else if (a.size() > b.size()) return false;
   for (size_t i = 0; i < a.size(); ++i) {
@@ -115,10 +184,10 @@ bool operator<(const oclalgo::shared_array<T>& a,
 }
 
 template<class T>
-void swap(oclalgo::shared_array<T>& a, oclalgo::shared_array<T>& b) {
+void swap(shared_array<T>& a, shared_array<T>& b) {
   a.swap(b);
 }
 
-} // namespace oclalgo
+}  // namespace oclalgo
 
-#endif  // OCLALGO_SHARED_ARRAY_H_
+#endif  // INC_OCLALGO_SHARED_ARRAY_H_

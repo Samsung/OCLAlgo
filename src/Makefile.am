@@ -31,7 +31,7 @@ lib_LTLIBRARIES = libOCLAlgo.la
 # Build information for libOCLAlgo.la
 
 # Source files
-libOCLAlgo_la_SOURCES = opencl_queue.cc
+libOCLAlgo_la_SOURCES = queue.cc
 
 # Linker options
 libOCLAlgo_la_LDFLAGS = $(AM_LDFLAGS) \

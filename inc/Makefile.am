@@ -24,4 +24,6 @@
 ##  SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
 ## Append header file names which you want to ship here
-pkginclude_HEADERS = oclalgo/hblas/matrix.h oclalgo/opencl_queue.h
+pkginclude_HEADERS = oclalgo/matrix.h oclalgo/dmatrix.h oclalgo/queue.h \
+                     oclalgo/future.h oclalgo/grid.h oclalgo/kernel_arg.h \
+                     oclalgo/shared_array.h oclalgo/task.h
