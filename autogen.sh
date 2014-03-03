@@ -2,7 +2,7 @@
 
 #  This file is a part of SEAPT, Samsung Extended Autotools Project Template
 
-#  Copyright 2012,2013 Samsung R&D Institute Russia
+#  Copyright 2012-2014 Samsung R&D Institute Russia
 #  All rights reserved.
 #
 #  Redistribution and use in source and binary forms, with or without

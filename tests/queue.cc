@@ -1,3 +1,36 @@
+/*!
+ * Copyright (c) 2014, Samsung Electronics Co.,Ltd.
+ * All rights reserved.
+ *
+ * Redistribution and use in source and binary forms, with or without
+ * modification, are permitted provided that the following conditions are met:
+ *
+ * 1. Redistributions of source code must retain the above copyright notice, this
+ *    list of conditions and the following disclaimer.
+ * 2. Redistributions in binary form must reproduce the above copyright notice,
+ *    this list of conditions and the following disclaimer in the documentation
+ *    and/or other materials provided with the distribution.
+ *
+ * THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS IS" AND
+ * ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED
+ * WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE
+ * DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT OWNER OR CONTRIBUTORS BE LIABLE FOR
+ * ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES
+ * (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES;
+ * LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND
+ * ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
+ * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS
+ * SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+ *
+ * The views and conclusions contained in the software and documentation are those
+ * of the authors and should not be interpreted as representing official policies,
+ * either expressed or implied, of Samsung Electronics Co.,Ltd..
+ *
+ * OCLAlgo - Framework based on C++11 and OpenCL API to provide simple access
+ *           to OpenCL devices for asynchronous calculations.
+ * URL:      https://github.com/seninds/OCLAlgo
+ */
+
 /*! @file queue.cc
  *  @brief Unit tests for oclalgo::Queue.
  *  @author Dmitry Senin <d.senin@samsung.com>
@@ -54,7 +87,7 @@ TEST(Queue, VectorAdd) {
   } catch (const cl::Error& e) {
     std::cerr << e.what() << " (err_code = "
               << oclalgo::Queue::StatusStr(e.err()) << ")" << std::endl;
-    ASSERT_FALSE(true);
+    throw e;
   }
 }
 
@@ -91,7 +124,7 @@ TEST(Queue, MatrixAdd) {
   } catch (const cl::Error& e) {
     std::cerr << e.what() << " (err_code = "
               << oclalgo::Queue::StatusStr(e.err()) << ")" << std::endl;
-    ASSERT_FALSE(true);
+    throw e;
   }
 }
 
@@ -159,7 +192,7 @@ TEST(Queue, MatrixMul_Row) {
   } catch (const cl::Error& e) {
     std::cerr << e.what() << " (err_code = "
         << oclalgo::Queue::StatusStr(e.err()) << ")" << std::endl;
-    ASSERT_FALSE(true);
+    throw e;
   }
 }
 
@@ -212,6 +245,6 @@ TEST(Queue, MatrixMul_Col) {
   } catch (const cl::Error& e) {
     std::cerr << e.what() << " (err_code = "
         << oclalgo::Queue::StatusStr(e.err()) << ")" << std::endl;
-    ASSERT_FALSE(true);
+    throw e;
   }
 }
