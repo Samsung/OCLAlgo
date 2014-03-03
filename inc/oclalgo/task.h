@@ -67,12 +67,10 @@ class Task {
   /** @brief Clears cl::Kernel object and all stored cl::Buffer objects. */
   void clear() noexcept {
     kernel_ = cl::Kernel();
-    buffers_.clear();
     output_.clear();
   }
 
   cl::Kernel kernel() const noexcept { return kernel_; }
-  std::vector<cl::Buffer> buffers() const noexcept { return buffers_; }
   std::vector<cl::Buffer> output() const noexcept { return output_; }
 
  private:
@@ -85,8 +83,6 @@ class Task {
     if (std::is_same<T, KernelArg<cl::Buffer>>::value) {
       if (arg.arg_type == ArgType::OUT || arg.arg_type == ArgType::IN_OUT)
         output_.push_back(arg.data);
-      else
-        buffers_.push_back(arg.data);
     }
   }
 
@@ -97,7 +93,6 @@ class Task {
   }
 
   cl::Kernel kernel_;
-  std::vector<cl::Buffer> buffers_;
   std::vector<cl::Buffer> output_;
 };
 

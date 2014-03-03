@@ -51,19 +51,26 @@
 namespace oclalgo {
 
 /** @brief Class for synchronization tasks with host thread. */
-template <typename T, typename U>
+template <typename T>
 class future {
  public:
-  /** @brief Constructor of oclalgo::future<T> class.
-   *  @param future_result stored future result object
-   *  @param stored_obj object, which is saved to exclude memory release
-   *                    during the task execution
-   *  @param event OpenCL event for task synchronization
+  /*!
+   * @brief Creates object of oclalgo::future class using copy of future result
+   * and OpenCL event for synchronization.
+   *
+   * @param future_result stored future result object
+   * @param event OpenCL event for task synchronization
    */
-  future(const T& future_result, const U& stored_obj,
-         const cl::Event& event);
-  future(T&& future_result, const U& stored_obj, const cl::Event& event);
-  future(T&& future_result, U&& stored_obj, const cl::Event& event);
+  future(const T& future_result, const cl::Event& event);
+
+  /*!
+   * @brief Creates object of oclalgo::future class using move copy of future
+   * result and copy OpenCL event for synchronization.
+   *
+   * @param future_result stored future result object
+   * @param event OpenCL event for task synchronization
+   */
+  future(T&& future_result, const cl::Event& event);
 
   future(const future&) = delete;
   future& operator=(const future&) = delete;
@@ -82,46 +89,31 @@ class future {
 
  private:
   T future_result_;
-  U stored_obj_;
   cl::Event event_;
 };
 
-template <typename T, typename U>
-future<T, U>::future(const T& future_result, const U& stored_obj,
-                     const cl::Event& event)
+template <typename T>
+future<T>::future(const T& future_result, const cl::Event& event)
     : future_result_(future_result),
-      stored_obj_(stored_obj),
       event_(event) {
 }
 
-template <typename T, typename U>
-future<T, U>::future(T&& future_result, const U& stored_obj,
-                     const cl::Event& event)
+template <typename T>
+future<T>::future(T&& future_result, const cl::Event& event)
     : future_result_(std::move(future_result)),
-      stored_obj_(stored_obj),
       event_(event) {
 }
 
-template <typename T, typename U>
-future<T, U>::future(T&& future_result, U&& stored_obj,
-                     const cl::Event& event)
-    : future_result_(std::move(future_result)),
-      stored_obj_(std::move(stored_obj)),
-      event_(event) {
-}
-
-template <typename T, typename U>
-future<T, U>::future(future&& f)
+template <typename T>
+future<T>::future(future&& f)
     : future_result_(std::move(f.future_result_)),
-      stored_obj_(std::move(f.stored_obj_)),
       event_(f.event_) {
   f.future_result_ = T();
-  f.stored_obj_ = U();
   f.event_ = cl::Event();
 }
 
-template <typename T, typename U>
-T future<T, U>::get() {
+template <typename T>
+T future<T>::get() {
   if (event_()) {
     event_.wait();
     return std::move(future_result_);
@@ -130,15 +122,13 @@ T future<T, U>::get() {
   }
 }
 
-template <typename T, typename U>
-void future<T, U>::wait() const {
+template <typename T>
+void future<T>::wait() const {
   if (event_())
     event_.wait();
   else
     throw cl::Error(CL_INVALID_EVENT, "null event in future::wait()");
 }
-
-typedef std::vector<cl::Buffer> VecBuffers;
 
 }  // namespace oclalgo
 

@@ -71,19 +71,6 @@ class MatrixQueue {
 /** @brief Class of matrix with data placed in OpenCL device memory. */
 template <typename T>
 class DMatrix {
-  template <typename U>
-  friend future<DMatrix<U>, VecBuffers> operator+(
-      const future<DMatrix<U>, VecBuffers>& m1,
-      const future<DMatrix<U>, VecBuffers>& m2);
-  template <typename U>
-  friend future<DMatrix<U>, VecBuffers> operator-(
-      const future<DMatrix<U>, VecBuffers>& m1,
-      const future<DMatrix<U>, VecBuffers>& m2);
-  template <typename U>
-  friend future<DMatrix<U>, VecBuffers> operator*(
-      const future<DMatrix<U>, VecBuffers>& m1,
-      const future<DMatrix<U>, VecBuffers>& m2);
-
  public:
   DMatrix();
   /** @brief Creates device matrix by using host matrix data. */
@@ -114,7 +101,7 @@ class DMatrix {
    * (depends on argument <i>block</i>). Host matrix based on device
    * matrix data.
    */
-  future<Matrix<T>, cl::Buffer> ToHost(BlockingType block) const;
+  oclalgo::future<Matrix<T>> ToHost(BlockingType block) const;
 
   /*!
    * @brief Modifies host matrix by coping data from device matrix.
@@ -132,8 +119,8 @@ class DMatrix {
    * @brief Updates device matrix using host matrix data as blocking or
    * unblocking operation (depends on argument <i>block</i>).
    */
-  future<DMatrix<T>, shared_array<T>> UpdateData(const Matrix<T>& m,
-                                                 BlockingType block);
+  oclalgo::future<DMatrix<T>> UpdateData(const Matrix<T>& m,
+                                         BlockingType block);
 
   /** @brief Returns number of rows in device matrix. */
   int rows() const noexcept { return rows_; }
@@ -202,10 +189,10 @@ Matrix<T> DMatrix<T>::ToHost() const {
 }
 
 template <typename T>
-future<Matrix<T>, cl::Buffer> DMatrix<T>::ToHost(BlockingType block) const {
+oclalgo::future<Matrix<T>> DMatrix<T>::ToHost(BlockingType block) const {
   shared_array<T> data(rows_ * cols_);
   auto f = MatrixQueue::instance()->memcpy(data, buffer_, block);
-  return future<Matrix<T>, cl::Buffer>(Matrix<T>(rows_, cols_, data), buffer_,
+  return oclalgo::future<Matrix<T>>(Matrix<T>(rows_, cols_, data),
                                        f.event());
 }
 
@@ -230,7 +217,7 @@ void DMatrix<T>::UpdateData(const Matrix<T>& m) {
 }
 
 template <typename T>
-future<DMatrix<T>, shared_array<T>> DMatrix<T>::UpdateData(const Matrix<T>& m,
+oclalgo::future<DMatrix<T>> DMatrix<T>::UpdateData(const Matrix<T>& m,
                                                            BlockingType block) {
   if (rows_ != m.rows() || cols_ != m.cols()) {
     rows_ = m.rows();
@@ -239,8 +226,8 @@ future<DMatrix<T>, shared_array<T>> DMatrix<T>::UpdateData(const Matrix<T>& m,
                          rows_ * cols_ * sizeof(T));
   }
   auto f = MatrixQueue::instance()->memcpy(buffer_, m.data(), block);
-  return future<DMatrix<T>, shared_array<T>>(DMatrix<T>(rows_, cols_, buffer_),
-      m.data(), f.event());
+  return oclalgo::future<DMatrix<T>>(DMatrix<T>(rows_, cols_, buffer_),
+      f.event());
 }
 
 template <typename T> std::string PrintType();
@@ -249,8 +236,8 @@ template <> std::string PrintType<float>() { return "float"; }
 template <> std::string PrintType<double>() { return "double"; }
 
 template <typename T>
-future<DMatrix<T>, VecBuffers> operator+(const DMatrix<T>& m1,
-                                         const DMatrix<T>& m2) {
+oclalgo::future<DMatrix<T>> operator+(const DMatrix<T>& m1,
+                                      const DMatrix<T>& m2) {
   assert(m1.rows() == m2.rows() && m1.cols() == m2.cols());
   Queue *queue = MatrixQueue::instance();
 
@@ -267,14 +254,13 @@ future<DMatrix<T>, VecBuffers> operator+(const DMatrix<T>& m1,
                                m2_arg, out_arg);
   Grid grid = Grid(cl::NDRange(m1.rows(), m1.cols()));
   auto f = queue->EnqueueTask(task, grid);
-  return future<DMatrix<T>, VecBuffers>(
-      DMatrix<T>(m1.rows(), m1.cols(), out),
-      {m1.buffer(), m2.buffer()}, f.event());
+  return oclalgo::future<DMatrix<T>>(DMatrix<T>(m1.rows(), m1.cols(), out),
+                                     f.event());
 }
 
 template <typename T>
-future<DMatrix<T>, VecBuffers> operator-(const DMatrix<T>& m1,
-                                         const DMatrix<T>& m2) {
+oclalgo::future<DMatrix<T>> operator-(const DMatrix<T>& m1,
+                                      const DMatrix<T>& m2) {
   assert(m1.rows() == m2.rows() && m1.cols() == m2.cols());
   Queue *queue = MatrixQueue::instance();
 
@@ -291,9 +277,8 @@ future<DMatrix<T>, VecBuffers> operator-(const DMatrix<T>& m1,
                                m2_arg, out_arg);
   Grid grid = Grid(cl::NDRange(m1.rows(), m1.cols()));
   auto f = queue->EnqueueTask(task, grid);
-  return future<DMatrix<T>, VecBuffers>(
-      DMatrix<T>(m1.rows(), m1.cols(), out),
-      {m1.buffer(), m2.buffer()}, f.event());
+  return oclalgo::future<DMatrix<T>>(DMatrix<T>(m1.rows(), m1.cols(), out),
+                                     f.event());
 }
 
 enum DataDir { ROW, COL };
@@ -310,8 +295,8 @@ struct matrix_param_t {
 };
 
 template <typename T>
-future<DMatrix<T>, VecBuffers> operator*(const DMatrix<T>& m1,
-                                         const DMatrix<T>& m2) {
+oclalgo::future<DMatrix<T>> operator*(const DMatrix<T>& m1,
+                                      const DMatrix<T>& m2) {
   assert(m1.cols() == m2.rows());
   matrix_param_t m1_param(m1.rows(), m1.cols(), DataDir::ROW);
   matrix_param_t m2_param(m2.rows(), m2.cols(), DataDir::ROW);
@@ -341,9 +326,8 @@ future<DMatrix<T>, VecBuffers> operator*(const DMatrix<T>& m1,
   Grid grid = Grid(cl::NDRange(m2.cols(), m1.rows()),
                    cl::NDRange(block_size, block_size));
   auto f = queue->EnqueueTask(task, grid);
-  return future<DMatrix<T>, VecBuffers>(
-      DMatrix<T>(m1.rows(), m2.cols(), out),
-      {m1.buffer(), m2.buffer()}, f.event());
+  return oclalgo::future<DMatrix<T>>(DMatrix<T>(m1.rows(), m2.cols(), out),
+                                     f.event());
 }
 
 }  // namespace oclalgo

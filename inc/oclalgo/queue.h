@@ -188,22 +188,23 @@ class Queue {
 
   /** @brief Copies host memory to cl::Buffer object. */
   template <typename T>
-  future<cl::Buffer, shared_array<T>> memcpy(
+  oclalgo::future<cl::Buffer> memcpy(
       const cl::Buffer& buffer, const shared_array<T>& array,
       BlockingType block = BlockingType::Block, size_t offset = 0,
       const std::vector<cl::Event>* events = nullptr);
 
   /** @brief Copies cl::Buffer object to host memory. */
   template <typename T>
-  future<shared_array<T>, cl::Buffer> memcpy(
+  oclalgo::future<shared_array<T>> memcpy(
       const shared_array<T>& array, const cl::Buffer& buffer,
       BlockingType block = BlockingType::Block, size_t offset = 0,
       const std::vector<cl::Event>* events = nullptr);
 
   /** @brief Starts task in OpenCL queue. */
   template <typename... Args>
-  future<std::vector<cl::Buffer>, std::vector<cl::Buffer>> EnqueueTask(
-      const Task& task, const Grid& grid, const Args&...);
+  oclalgo::future<std::vector<cl::Buffer>> EnqueueTask(const Task& task,
+                                                       const Grid& grid,
+                                                       const Args&...);
 
   /** @brief Returns string corresponding to the error code. */
   static std::string StatusStr(cl_int code);
@@ -296,27 +297,27 @@ cl::LocalSpaceArg CreateLocalBuffer(size_t size) {
 }
 
 template <typename T>
-future<cl::Buffer, shared_array<T>> Queue::memcpy(
+oclalgo::future<cl::Buffer> Queue::memcpy(
     const cl::Buffer& buffer, const shared_array<T>& array, BlockingType block,
-    size_t offset, const std::vector<cl::Event>* events) {
+    size_t offset,const std::vector<cl::Event>* events) {
   cl::Event event;
   queue_.enqueueWriteBuffer(buffer,
                             block == BlockingType::Block ? CL_TRUE : CL_FALSE,
-                            offset, array.memsize(),
-                            array.get_raw(), events, &event);
-  return future<cl::Buffer, shared_array<T>>(buffer, array, event);
+                            offset, array.memsize(), array.get_raw(),
+                            events, &event);
+  return oclalgo::future<cl::Buffer>(buffer, event);
 }
 
 template <typename T>
-future<shared_array<T>, cl::Buffer> Queue::memcpy(
+oclalgo::future<shared_array<T>> Queue::memcpy(
     const shared_array<T>& array, const cl::Buffer& buffer, BlockingType block,
     size_t offset, const std::vector<cl::Event>* events) {
   cl::Event event;
   queue_.enqueueReadBuffer(buffer,
                            block == BlockingType::Block ? CL_TRUE : CL_FALSE,
-                           offset, array.memsize(),
-                           array.get_raw(), events, &event);
-  return future<shared_array<T>, cl::Buffer>(array, buffer, event);
+                           offset, array.memsize(), array.get_raw(),
+                           events, &event);
+  return oclalgo::future<shared_array<T>>(array, event);
 }
 
 template <typename... Args>
@@ -362,24 +363,23 @@ template <typename First, typename... Tail>
 std::vector<cl::Event> ExtractEvents(const First& first, const Tail&... tail);
 
 template <typename... Args>
-future<std::vector<cl::Buffer>, std::vector<cl::Buffer>> Queue::EnqueueTask(
+oclalgo::future<std::vector<cl::Buffer>> Queue::EnqueueTask(
     const Task& task, const Grid& grid, const Args&... args) {
   std::vector<cl::Event> events = ExtractEvents(args...), *pevents = nullptr;
   if (events.size()) pevents = &events;
   cl::Event event;
   queue_.enqueueNDRangeKernel(task.kernel(), grid.offset(), grid.global(),
                               grid.local(), pevents, &event);
-  return future<std::vector<cl::Buffer>, std::vector<cl::Buffer>>
-      (task.output(), task.buffers(), event);
+  return oclalgo::future<std::vector<cl::Buffer>>(task.output(), event);
 }
 
-template <typename T, typename U>
-std::vector<cl::Event> ExtractEvents(const future<T, U>& f) {
+template <typename T>
+std::vector<cl::Event> ExtractEvents(const oclalgo::future<T>& f) {
   return std::vector<cl::Event>({ f.event() });
 }
 
 template <typename T, typename U>
-std::vector<cl::Event> ExtractEvents(const std::vector<future<T, U>>& f) {
+std::vector<cl::Event> ExtractEvents(const std::vector<oclalgo::future<T>>& f) {
   std::vector<cl::Event> events;
   for (const auto& el : f)
     events.push_back(el.event());
