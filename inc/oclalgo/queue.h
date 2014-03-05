@@ -106,8 +106,8 @@
 #include <vector>
 
 #include <oclalgo/shared_array.h>
-#include <oclalgo/kernel_arg.h>
 #include <oclalgo/task.h>
+#include <oclalgo/kernel_arg.h>
 #include <oclalgo/grid.h>
 #include <oclalgo/future.h>
 
@@ -162,49 +162,80 @@ class Queue {
    */
   template <typename... Args>
   Task CreateTask(const std::string& programName, const std::string& kernelName,
-                  const std::string& options, const Args&... args);
+                  const std::string& options, const Args&... args) const;
 
   /** @brief Creates OpenCL buffer with corresponding size and OpenCL flags. */
   template <typename T>
-  cl::Buffer CreateBuffer(cl_mem_flags flags, size_t size);
+  cl::Buffer CreateBuffer(size_t size, cl_mem_flags flags) const;
 
   /** @brief Creates OpenCL buffer with corresponding size and type. */
   template <typename T>
-  cl::Buffer CreateBuffer(BufferType type, size_t size);
+  cl::Buffer CreateBuffer(size_t size, BufferType type) const;
 
   /*!
    * @brief Creates OpenCL buffer by host array with corresponding OpenCL flags.
    */
   template <typename T>
-  cl::Buffer CreateBuffer(cl_mem_flags flags, const shared_array<T>& array);
+  cl::Buffer CreateBuffer(const shared_array<T>& array,
+                          cl_mem_flags flags) const;
 
   /** @brief Creates OpenCL buffer by host array with corresponding type. */
   template <typename T>
-  cl::Buffer CreateBuffer(BufferType type, const shared_array<T>& array);
+  cl::Buffer CreateBuffer(const shared_array<T>& array, BufferType type) const;
 
   /** @brief Creates OpenCL local buffer with corresponding size. */
   template <typename T>
-  cl::LocalSpaceArg CreateLocalBuffer(size_t size);
+  cl::LocalSpaceArg CreateLocalBuffer(size_t size) const;
 
-  /** @brief Copies host memory to cl::Buffer object. */
+  /**
+   * @brief Creates KernelArg<cl::Buffer> class object for corresponding
+   * shared_array class object.
+   */
+  template <typename T>
+  BufferArg CreateKernelArg(const shared_array<T>& array, ArgType arg_type);
+
+  /**
+   * @brief Creates KernelArg<cl::Buffer> class object with corresponding
+   * size and type.
+   */
+  template <typename T>
+  BufferArg CreateKernelArg(size_t size, ArgType arg_type);
+
+  /** @brief Copies host memory to cl::Buffer object (synchronously). */
+  template <typename T>
+  cl::Buffer memcpy(const cl::Buffer& buffer, const shared_array<T>& array,
+                    size_t offset = 0,
+                    const std::vector<cl::Event>* events = nullptr) const;
+
+  /**
+   * @brief Copies host memory to cl::Buffer object using corresponding
+   * blocking parameter.
+   */
   template <typename T>
   oclalgo::future<cl::Buffer> memcpy(
-      const cl::Buffer& buffer, const shared_array<T>& array,
-      BlockingType block = BlockingType::Block, size_t offset = 0,
-      const std::vector<cl::Event>* events = nullptr);
+      cl::Buffer&& buffer, const shared_array<T>& array, BlockingType block,
+      size_t offset = 0, const std::vector<cl::Event>* events = nullptr) const;
 
-  /** @brief Copies cl::Buffer object to host memory. */
+  /** @brief Copies cl::Buffer object to host memory (synchronously). */
+  template<typename T>
+  shared_array<T> memcpy(const shared_array<T>& array, const cl::Buffer& buffer,
+                         size_t offset = 0,
+                         const std::vector<cl::Event>* events = nullptr) const;
+
+  /**
+   * @brief Copies cl::Buffer object  to host memory using corresponding
+   * blocking parameter.
+   */
   template <typename T>
   oclalgo::future<shared_array<T>> memcpy(
-      const shared_array<T>& array, const cl::Buffer& buffer,
-      BlockingType block = BlockingType::Block, size_t offset = 0,
-      const std::vector<cl::Event>* events = nullptr);
+      shared_array<T>&& array, const cl::Buffer& buffer, BlockingType block,
+      size_t offset = 0, const std::vector<cl::Event>* events = nullptr) const;
 
   /** @brief Starts task in OpenCL queue. */
   template <typename... Args>
   oclalgo::future<std::vector<cl::Buffer>> EnqueueTask(const Task& task,
                                                        const Grid& grid,
-                                                       const Args&...);
+                                                       const Args&...) const;
 
   /** @brief Returns string corresponding to the error code. */
   static std::string StatusStr(cl_int code);
@@ -233,22 +264,24 @@ class Queue {
   cl::CommandQueue queue() const noexcept { return queue_; }
 
  private:
+  static BufferType CastToBufferType(ArgType arg_type);
+
   cl::Platform platform_;
   cl::Device device_;
   int platform_id_;
   int device_id_;
   cl::Context context_;
   cl::CommandQueue queue_;
-  std::unordered_map<std::string, cl::Program> programs_;
+  mutable std::unordered_map<std::string, cl::Program> programs_;
 };
 
 template <typename T>
-cl::Buffer Queue::CreateBuffer(cl_mem_flags flags, size_t size) {
+cl::Buffer Queue::CreateBuffer(size_t size, cl_mem_flags flags) const {
   return cl::Buffer(context_, flags, size * sizeof(T), nullptr);
 }
 
 template <typename T>
-cl::Buffer Queue::CreateBuffer(BufferType type, size_t size) {
+cl::Buffer Queue::CreateBuffer(size_t size, BufferType type) const {
   cl::Buffer buffer;
   switch (type) {
     case BufferType::ReadOnly:
@@ -265,14 +298,14 @@ cl::Buffer Queue::CreateBuffer(BufferType type, size_t size) {
 }
 
 template <typename T>
-cl::Buffer Queue::CreateBuffer(cl_mem_flags flags,
-                               const shared_array<T>& array) {
+cl::Buffer Queue::CreateBuffer(const shared_array<T>& array,
+                               cl_mem_flags flags) const {
   return cl::Buffer(context_, flags, array.memsize(), array.get_raw());
 }
 
 template <typename T>
-cl::Buffer Queue::CreateBuffer(BufferType type,
-                               const shared_array<T>& array) {
+cl::Buffer Queue::CreateBuffer(const shared_array<T>& array,
+                               BufferType type) const {
   cl::Buffer buffer;
   switch (type) {
     case BufferType::ReadOnly:
@@ -292,38 +325,69 @@ cl::Buffer Queue::CreateBuffer(BufferType type,
 }
 
 template <typename T>
-cl::LocalSpaceArg CreateLocalBuffer(size_t size) {
+cl::LocalSpaceArg Queue::CreateLocalBuffer(size_t size) const {
   return cl::Local(size * sizeof(T));
 }
 
 template <typename T>
+BufferArg Queue::CreateKernelArg(const shared_array<T>& array,
+                                 ArgType arg_type) {
+  BufferType buffer_type = Queue::CastToBufferType(arg_type);
+  return BufferArg(this->CreateBuffer(array, buffer_type), arg_type);
+}
+
+template <typename T>
+BufferArg Queue::CreateKernelArg(size_t size, ArgType arg_type) {
+  BufferType buffer_type = Queue::CastToBufferType(arg_type);
+  return BufferArg(this->CreateBuffer<T>(size, buffer_type), arg_type);
+}
+
+template <typename T>
+cl::Buffer Queue::memcpy(const cl::Buffer& buffer, const shared_array<T>& array,
+                         size_t offset,
+                         const std::vector<cl::Event>* events) const {
+  queue_.enqueueWriteBuffer(buffer, CL_TRUE, offset, array.memsize(),
+                            array.get_raw(), events);
+  return buffer;
+}
+
+template <typename T>
 oclalgo::future<cl::Buffer> Queue::memcpy(
-    const cl::Buffer& buffer, const shared_array<T>& array, BlockingType block,
-    size_t offset,const std::vector<cl::Event>* events) {
+    cl::Buffer&& buffer, const shared_array<T>& array, BlockingType block,
+    size_t offset,const std::vector<cl::Event>* events) const {
   cl::Event event;
   queue_.enqueueWriteBuffer(buffer,
                             block == BlockingType::Block ? CL_TRUE : CL_FALSE,
                             offset, array.memsize(), array.get_raw(),
                             events, &event);
-  return oclalgo::future<cl::Buffer>(buffer, event);
+  return oclalgo::future<cl::Buffer>(std::move(buffer), event);
 }
 
 template <typename T>
 oclalgo::future<shared_array<T>> Queue::memcpy(
-    const shared_array<T>& array, const cl::Buffer& buffer, BlockingType block,
-    size_t offset, const std::vector<cl::Event>* events) {
+    shared_array<T>&& array, const cl::Buffer& buffer, BlockingType block,
+    size_t offset, const std::vector<cl::Event>* events) const {
   cl::Event event;
   queue_.enqueueReadBuffer(buffer,
                            block == BlockingType::Block ? CL_TRUE : CL_FALSE,
                            offset, array.memsize(), array.get_raw(),
                            events, &event);
-  return oclalgo::future<shared_array<T>>(array, event);
+  return oclalgo::future<shared_array<T>>(std::move(array), event);
+}
+
+template <typename T>
+shared_array<T> Queue::memcpy(const shared_array<T>& array,
+                              const cl::Buffer& buffer, size_t offset,
+                              const std::vector<cl::Event>* events) const {
+  queue_.enqueueReadBuffer(buffer, CL_TRUE, offset, array.memsize(),
+                           array.get_raw(), events);
+  return array;
 }
 
 template <typename... Args>
 Task Queue::CreateTask(const std::string& programName,
                        const std::string& kernelName,
-                       const std::string& options, const Args&... args) {
+                       const std::string& options, const Args&... args) const {
   char buff[512] = {0};
   std::snprintf(buff, sizeof(buff), "program=\"%s\"\noptions=\"%s\"",
                 programName.c_str(), options.c_str());
@@ -364,13 +428,26 @@ std::vector<cl::Event> ExtractEvents(const First& first, const Tail&... tail);
 
 template <typename... Args>
 oclalgo::future<std::vector<cl::Buffer>> Queue::EnqueueTask(
-    const Task& task, const Grid& grid, const Args&... args) {
+    const Task& task, const Grid& grid, const Args&... args) const {
   std::vector<cl::Event> events = ExtractEvents(args...), *pevents = nullptr;
   if (events.size()) pevents = &events;
   cl::Event event;
   queue_.enqueueNDRangeKernel(task.kernel(), grid.offset(), grid.global(),
                               grid.local(), pevents, &event);
   return oclalgo::future<std::vector<cl::Buffer>>(task.output(), event);
+}
+
+BufferType Queue::CastToBufferType(ArgType arg_type) {
+  switch (arg_type) {
+    case ArgType::IN:
+      return BufferType::ReadOnly;
+    case ArgType::OUT:
+      return BufferType::WriteOnly;
+    case ArgType::IN_OUT:
+      return BufferType::ReadWrite;
+    default:
+      throw std::invalid_argument("can't find equivalent buffer type");
+  }
 }
 
 template <typename T>

@@ -67,18 +67,15 @@ TEST(Queue, VectorAdd) {
       b[i] = size - i;
     }
 
-    BufferArg a_arg(queue.CreateBuffer(oclalgo::BufferType::ReadOnly, a),
-                    ArgType::IN);
-    BufferArg b_arg(queue.CreateBuffer(oclalgo::BufferType::ReadOnly, b),
-                    ArgType::IN);
-    BufferArg c_arg(queue.CreateBuffer<int>(BufferType::WriteOnly, size),
-                    ArgType::OUT);
+    BufferArg a_arg = queue.CreateKernelArg(a, ArgType::IN);
+    BufferArg b_arg = queue.CreateKernelArg(b, ArgType::IN);
+    BufferArg c_arg = queue.CreateKernelArg<int>(size, ArgType::OUT);
 
     oclalgo::Task task = queue.CreateTask("vector.cl", "vector_add", "", a_arg,
                                           b_arg, c_arg);
     oclalgo::Grid grid = oclalgo::Grid(cl::NDRange(size));
-    auto future = queue.EnqueueTask(task, grid);
-    queue.memcpy(a, future.get()[0]);
+    auto ocl_res = queue.EnqueueTask(task, grid);
+    queue.memcpy(a, ocl_res.get()[0]);
 
     // check results
     auto it = std::find_if(a.get_raw(), a.get_raw() + a.size(),
@@ -106,10 +103,9 @@ TEST(Queue, MatrixAdd) {
       }
     }
 
-    BufferArg a_arg(queue.CreateBuffer(BufferType::ReadOnly, a), ArgType::IN);
-    BufferArg b_arg(queue.CreateBuffer(BufferType::ReadOnly, b), ArgType::IN);
-    BufferArg c_arg(queue.CreateBuffer<int>(BufferType::WriteOnly, size),
-                    ArgType::OUT);
+    BufferArg a_arg = queue.CreateKernelArg(a, ArgType::IN);
+    BufferArg b_arg = queue.CreateKernelArg(b, ArgType::IN);
+    BufferArg c_arg = queue.CreateKernelArg<int>(size, ArgType::OUT);
 
     oclalgo::Task task = queue.CreateTask("matrix.cl", "matrix_add", "", a_arg,
                                           b_arg, c_arg);
@@ -150,36 +146,35 @@ TEST(Queue, MatrixMul_Row) {
   using oclalgo::ArgType;
   try {
     oclalgo::Queue queue(platform_name, device_name);
-    matrix_param_t A_param, B_param;
-    A_param.cols = 4, A_param.rows = 4, A_param.dir = DataDir::ROW;
-    B_param.cols = 8, B_param.rows = 4, B_param.dir = DataDir::ROW;
-    oclalgo::shared_array<int> m1(A_param.cols * A_param.rows);
-    oclalgo::shared_array<int> m2(B_param.cols * B_param.rows);
+    matrix_param_t m1_param, m2_param;
+    m1_param.cols = 4, m1_param.rows = 4, m1_param.dir = DataDir::ROW;
+    m2_param.cols = 8, m2_param.rows = 4, m2_param.dir = DataDir::ROW;
+    oclalgo::shared_array<int> m1(m1_param.cols * m1_param.rows);
+    oclalgo::shared_array<int> m2(m2_param.cols * m2_param.rows);
 
-    for (int i = 0; i < A_param.rows * A_param.cols; ++i)
+    for (int i = 0; i < m1_param.rows * m1_param.cols; ++i)
       m1[i] = i + 1;
-    for (int i = 0; i < B_param.rows * B_param.cols; ++i)
+    for (int i = 0; i < m2_param.rows * m2_param.cols; ++i)
       m2[i] = i + 1;
 
-    BufferArg A(queue.CreateBuffer(BufferType::ReadOnly, m1), ArgType::IN);
-    cl::Buffer pA = cl::Buffer(queue.context(),
-                               CL_MEM_READ_ONLY | CL_MEM_USE_HOST_PTR,
-                               sizeof(matrix_param_t), &A_param);
-    BufferArg buff_pA(pA, ArgType::IN);
-    BufferArg B(queue.CreateBuffer(BufferType::ReadOnly, m2), ArgType::IN);
-    cl::Buffer pB = cl::Buffer(queue.context(),
-                               CL_MEM_READ_ONLY | CL_MEM_USE_HOST_PTR,
-                               sizeof(matrix_param_t), &B_param);
-    BufferArg buff_pB(pB, ArgType::IN);
-    BufferArg C(queue.CreateBuffer<int>(BufferType::WriteOnly,
-                                        A_param.rows * B_param.cols),
-                ArgType::OUT);
+    BufferArg A = queue.CreateKernelArg(m1, ArgType::IN);
+    cl::Buffer A_param = cl::Buffer(queue.context(),
+                                    CL_MEM_READ_ONLY | CL_MEM_USE_HOST_PTR,
+                                    sizeof(m1_param), &m1_param);
+    BufferArg A_param_arg(A_param, ArgType::IN);
+    BufferArg B = queue.CreateKernelArg(m2, ArgType::IN);
+    cl::Buffer B_param = cl::Buffer(queue.context(),
+                                    CL_MEM_READ_ONLY | CL_MEM_USE_HOST_PTR,
+                                    sizeof(m2_param), &m2_param);
+    BufferArg B_param_arg(B_param, ArgType::IN);
+    BufferArg C = queue.CreateKernelArg<int>(m1_param.rows * m2_param.cols,
+                                             ArgType::OUT);
 
     oclalgo::Task task = queue.CreateTask("matrix.cl", "matrix_mul",
-                                 "-D BLOCK_SIZE=2 -D VAR_TYPE=int",
-                                 A, buff_pA, B, buff_pB, C);
-    oclalgo::Grid grid = oclalgo::Grid(cl::NDRange(B_param.cols, A_param.rows),
-                                       cl::NDRange(2, 2));
+                                          "-D BLOCK_SIZE=2 -D VAR_TYPE=int", A,
+                                          A_param_arg, B, B_param_arg, C);
+    oclalgo::Grid grid = oclalgo::Grid(
+        cl::NDRange(m2_param.cols, m1_param.rows), cl::NDRange(2, 2));
     auto future = queue.EnqueueTask(task, grid);
 
     queue.memcpy(m2, future.get()[0]);
@@ -187,7 +182,7 @@ TEST(Queue, MatrixMul_Row) {
                      378, 404, 430, 456,  482,  508,  534,  560,
                      586, 628, 670, 712,  754,  796,  838,  880,
                      794, 852, 910, 968, 1026, 1084, 1142, 1200 };
-    for (int i = 0; i < A_param.rows * B_param.cols; ++i)
+    for (int i = 0; i < m1_param.rows * m2_param.cols; ++i)
       ASSERT_EQ(gold_res[i], m2[i]);
   } catch (const cl::Error& e) {
     std::cerr << e.what() << " (err_code = "
@@ -202,36 +197,35 @@ TEST(Queue, MatrixMul_Col) {
   using oclalgo::ArgType;
   try {
     oclalgo::Queue queue(platform_name, device_name);
-    matrix_param_t A_param, B_param;
-    A_param.cols = 4, A_param.rows = 4, A_param.dir = DataDir::COL;
-    B_param.cols = 8, B_param.rows = 4, B_param.dir = DataDir::ROW;
-    oclalgo::shared_array<int> m1(A_param.cols * A_param.rows);
-    oclalgo::shared_array<int> m2(B_param.cols * B_param.rows);
+    matrix_param_t m1_param, m2_param;
+    m1_param.cols = 4, m1_param.rows = 4, m1_param.dir = DataDir::COL;
+    m2_param.cols = 8, m2_param.rows = 4, m2_param.dir = DataDir::ROW;
+    oclalgo::shared_array<int> m1(m1_param.cols * m1_param.rows);
+    oclalgo::shared_array<int> m2(m2_param.cols * m2_param.rows);
 
-    for (int i = 0; i < A_param.rows; ++i)
-      for (int j = 0; j < A_param.cols; ++j)
-        m1[j * A_param.rows + i] = i * A_param.cols + j + 1;
-    for (int i = 0; i < B_param.rows * B_param.cols; ++i)
+    for (int i = 0; i < m1_param.rows; ++i)
+      for (int j = 0; j < m1_param.cols; ++j)
+        m1[j * m1_param.rows + i] = i * m1_param.cols + j + 1;
+    for (int i = 0; i < m2_param.rows * m2_param.cols; ++i)
       m2[i] = i + 1;
 
-    BufferArg A(queue.CreateBuffer(BufferType::ReadOnly, m1), ArgType::IN);
-    cl::Buffer pA = cl::Buffer(queue.context(),
-                               CL_MEM_READ_ONLY | CL_MEM_USE_HOST_PTR,
-                               sizeof(matrix_param_t), &A_param);
-    BufferArg buff_pA(pA, ArgType::IN);
-    BufferArg B(queue.CreateBuffer(BufferType::ReadOnly, m2), ArgType::IN);
-    cl::Buffer pB = cl::Buffer(queue.context(),
-                               CL_MEM_READ_ONLY | CL_MEM_USE_HOST_PTR,
-                               sizeof(matrix_param_t), &B_param);
-    BufferArg buff_pB(pB, ArgType::IN);
-    BufferArg C(queue.CreateBuffer<int>(BufferType::WriteOnly,
-                                        A_param.rows * B_param.cols),
-                ArgType::OUT);
+    BufferArg A = queue.CreateKernelArg(m1, ArgType::IN);
+    cl::Buffer A_param = cl::Buffer(queue.context(),
+                                    CL_MEM_READ_ONLY | CL_MEM_USE_HOST_PTR,
+                                    sizeof(m1_param), &m1_param);
+    BufferArg A_param_arg(A_param, ArgType::IN);
+    BufferArg B = queue.CreateKernelArg(m2, ArgType::IN);
+    cl::Buffer B_param = cl::Buffer(queue.context(),
+                                    CL_MEM_READ_ONLY | CL_MEM_USE_HOST_PTR,
+                                    sizeof(m2_param), &m2_param);
+    BufferArg B_param_arg(B_param, ArgType::IN);
+    BufferArg C = queue.CreateKernelArg<int>(m1_param.rows * m2_param.cols,
+                                             ArgType::OUT);
 
     oclalgo::Task task = queue.CreateTask("matrix.cl", "matrix_mul",
-                                 "-D BLOCK_SIZE=2 -D VAR_TYPE=int",
-                                 A, buff_pA, B, buff_pB, C);
-    oclalgo::Grid grid = oclalgo::Grid(cl::NDRange(B_param.cols, A_param.rows),
+                                          "-D BLOCK_SIZE=2 -D VAR_TYPE=int", A,
+                                          A_param_arg, B, B_param_arg, C);
+    oclalgo::Grid grid = oclalgo::Grid(cl::NDRange(m2_param.cols, m1_param.rows),
                                        cl::NDRange(2, 2));
     auto future = queue.EnqueueTask(task, grid);
 
@@ -240,7 +234,7 @@ TEST(Queue, MatrixMul_Col) {
                      378, 404, 430, 456,  482,  508,  534,  560,
                      586, 628, 670, 712,  754,  796,  838,  880,
                      794, 852, 910, 968, 1026, 1084, 1142, 1200 };
-    for (int i = 0; i < A_param.rows * B_param.cols; ++i)
+    for (int i = 0; i < m1_param.rows * m2_param.cols; ++i)
       ASSERT_EQ(gold_res[i], m2[i]);
   } catch (const cl::Error& e) {
     std::cerr << e.what() << " (err_code = "

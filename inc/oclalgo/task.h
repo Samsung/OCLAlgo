@@ -49,6 +49,8 @@
 #include <type_traits>
 #include <vector>
 
+#include <oclalgo/kernel_arg.h>
+
 namespace oclalgo {
 
 /*!
@@ -79,10 +81,10 @@ class Task {
 
   template <typename T>
   void SetArg(int index, const T& arg) {
-    kernel_.setArg(index, arg.data);
-    if (std::is_same<T, KernelArg<cl::Buffer>>::value) {
-      if (arg.arg_type == ArgType::OUT || arg.arg_type == ArgType::IN_OUT)
-        output_.push_back(arg.data);
+    kernel_.setArg(index, arg.data());
+    if (std::is_same<T, BufferArg>::value) {
+      if (arg.arg_type() == ArgType::OUT || arg.arg_type() == ArgType::IN_OUT)
+        output_.push_back(arg.data());
     }
   }
 

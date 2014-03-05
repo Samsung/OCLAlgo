@@ -55,15 +55,54 @@ enum class ArgType { IN, OUT, IN_OUT };
 template <typename T>
 struct KernelArg {
  public:
-  KernelArg(const T& data, ArgType arg_type) : data(data), arg_type(arg_type) {
-  }
+  KernelArg(const T& data, ArgType arg_type);
+  KernelArg(T&& data, ArgType arg_type);
 
-  T data;
-  ArgType arg_type;
+  KernelArg(const KernelArg<T>&) = delete;
+  KernelArg<T>& operator=(const KernelArg<T>&) = delete;
+
+  KernelArg(KernelArg<T>&& arg);
+  KernelArg<T>& operator=(KernelArg<T>&& arg);
+
+  const T& data() const noexcept { return data_; }
+  T& data() noexcept { return data_; }
+  ArgType arg_type() const noexcept { return arg_type_; }
+  ArgType& arg_type() noexcept { return arg_type_; }
+
+ private:
+  T data_;
+  ArgType arg_type_;
 };
 
 typedef KernelArg<cl::Buffer> BufferArg;
 typedef KernelArg<cl::LocalSpaceArg> LocalArg;
+
+template <typename T>
+KernelArg<T>::KernelArg(const T& data, ArgType arg_type)
+    : data_(data),
+      arg_type_(arg_type) {
+}
+
+template <typename T>
+KernelArg<T>::KernelArg(T&& data, ArgType arg_type)
+    : data_(std::move(data)),
+      arg_type_(arg_type) {
+}
+
+template <typename T>
+KernelArg<T>::KernelArg(KernelArg<T>&& arg)
+    : data_(std::move(arg.data_)),
+      arg_type_(arg.arg_type_) {
+}
+
+template <typename T>
+KernelArg<T>& KernelArg<T>::operator=(KernelArg<T>&& arg) {
+  if (this != &arg) {
+    data_ = std::move(arg.data_);
+    arg_type_ = arg.arg_type_;
+  }
+  return this;
+}
 
 }  // namespace oclalgo
 

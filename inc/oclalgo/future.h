@@ -55,15 +55,6 @@ template <typename T>
 class future {
  public:
   /*!
-   * @brief Creates object of oclalgo::future class using copy of future result
-   * and OpenCL event for synchronization.
-   *
-   * @param future_result stored future result object
-   * @param event OpenCL event for task synchronization
-   */
-  future(const T& future_result, const cl::Event& event);
-
-  /*!
    * @brief Creates object of oclalgo::future class using move copy of future
    * result and copy OpenCL event for synchronization.
    *
@@ -91,12 +82,6 @@ class future {
   T future_result_;
   cl::Event event_;
 };
-
-template <typename T>
-future<T>::future(const T& future_result, const cl::Event& event)
-    : future_result_(future_result),
-      event_(event) {
-}
 
 template <typename T>
 future<T>::future(T&& future_result, const cl::Event& event)

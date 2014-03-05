@@ -190,10 +190,11 @@ Matrix<T> DMatrix<T>::ToHost() const {
 
 template <typename T>
 oclalgo::future<Matrix<T>> DMatrix<T>::ToHost(BlockingType block) const {
-  shared_array<T> data(rows_ * cols_);
-  auto f = MatrixQueue::instance()->memcpy(data, buffer_, block);
-  return oclalgo::future<Matrix<T>>(Matrix<T>(rows_, cols_, data),
-                                       f.event());
+  shared_array<T> data(rows_ * cols_), copy(data);
+  auto f = MatrixQueue::instance()->memcpy(std::move(copy), buffer_,
+                                           block);
+  Matrix<T> result(rows_, cols_, data);
+  return oclalgo::future<Matrix<T>>(std::move(result), f.event());
 }
 
 template <typename T>
@@ -218,16 +219,17 @@ void DMatrix<T>::UpdateData(const Matrix<T>& m) {
 
 template <typename T>
 oclalgo::future<DMatrix<T>> DMatrix<T>::UpdateData(const Matrix<T>& m,
-                                                           BlockingType block) {
+                                                   BlockingType block) {
   if (rows_ != m.rows() || cols_ != m.cols()) {
     rows_ = m.rows();
     cols_ = m.cols();
     buffer_ = cl::Buffer(MatrixQueue::instance()->context(), CL_MEM_READ_WRITE,
                          rows_ * cols_ * sizeof(T));
   }
-  auto f = MatrixQueue::instance()->memcpy(buffer_, m.data(), block);
-  return oclalgo::future<DMatrix<T>>(DMatrix<T>(rows_, cols_, buffer_),
-      f.event());
+  cl::Buffer copy(buffer_);
+  auto f = MatrixQueue::instance()->memcpy(std::move(copy), m.data(), block);
+  DMatrix<T> result(rows_, cols_, buffer_);
+  return oclalgo::future<DMatrix<T>>(std::move(result), f.event());
 }
 
 template <typename T> std::string PrintType();
@@ -244,18 +246,17 @@ oclalgo::future<DMatrix<T>> operator+(const DMatrix<T>& m1,
   BufferArg m1_arg(m1.buffer(), ArgType::IN);
   BufferArg m2_arg(m2.buffer(), ArgType::IN);
   size_t size = sizeof(T) * m1.rows() * m1.cols();
-  cl::Buffer out = queue->CreateBuffer<int>(BufferType::WriteOnly, size);
-  BufferArg out_arg(out, ArgType::OUT);
+  BufferArg out = queue->CreateKernelArg<T>(size, ArgType::OUT);
 
   char options[512] = {0};
   std::snprintf(options, sizeof(options), "-D VAR_TYPE=%s",
                 PrintType<T>().c_str());
   Task task = queue->CreateTask("matrix.cl", "matrix_add", options, m1_arg,
-                               m2_arg, out_arg);
+                               m2_arg, out);
   Grid grid = Grid(cl::NDRange(m1.rows(), m1.cols()));
   auto f = queue->EnqueueTask(task, grid);
-  return oclalgo::future<DMatrix<T>>(DMatrix<T>(m1.rows(), m1.cols(), out),
-                                     f.event());
+  DMatrix<T> result(m1.rows(), m1.cols(), out.data());
+  return oclalgo::future<DMatrix<T>>(std::move(result), f.event());
 }
 
 template <typename T>
@@ -267,18 +268,17 @@ oclalgo::future<DMatrix<T>> operator-(const DMatrix<T>& m1,
   BufferArg m1_arg(m1.buffer(), ArgType::IN);
   BufferArg m2_arg(m2.buffer(), ArgType::IN);
   size_t size = sizeof(T) * m1.rows() * m1.cols();
-  cl::Buffer out = queue->CreateBuffer<int>(BufferType::WriteOnly, size);
-  BufferArg out_arg(out, ArgType::OUT);
+  BufferArg out = queue->CreateKernelArg<T>(size, ArgType::OUT);
 
   char options[512] = {0};
   std::snprintf(options, sizeof(options), "-D VAR_TYPE=%s",
                 PrintType<T>().c_str());
   Task task = queue->CreateTask("matrix.cl", "matrix_sub", options, m1_arg,
-                               m2_arg, out_arg);
+                               m2_arg, out);
   Grid grid = Grid(cl::NDRange(m1.rows(), m1.cols()));
   auto f = queue->EnqueueTask(task, grid);
-  return oclalgo::future<DMatrix<T>>(DMatrix<T>(m1.rows(), m1.cols(), out),
-                                     f.event());
+  DMatrix<T> result(m1.rows(), m1.cols(), out.data());
+  return oclalgo::future<DMatrix<T>>(std::move(result), f.event());
 }
 
 enum DataDir { ROW, COL };
@@ -305,8 +305,7 @@ oclalgo::future<DMatrix<T>> operator*(const DMatrix<T>& m1,
   BufferArg m1_arg(m1.buffer(), ArgType::IN);
   BufferArg m2_arg(m2.buffer(), ArgType::IN);
   size_t size = sizeof(T) * m1.rows() * m2.cols();
-  cl::Buffer out = queue->CreateBuffer<int>(BufferType::WriteOnly, size);
-  BufferArg out_arg(out, ArgType::OUT);
+  BufferArg out = queue->CreateKernelArg<T>(size, ArgType::OUT);
   cl::Buffer m1p = cl::Buffer(queue->context(),
                               CL_MEM_READ_ONLY | CL_MEM_USE_HOST_PTR,
                               sizeof(matrix_param_t), &m1_param);
@@ -322,12 +321,12 @@ oclalgo::future<DMatrix<T>> operator*(const DMatrix<T>& m1,
                 block_size, PrintType<T>().c_str());
   Task task = queue->CreateTask("matrix.cl", "matrix_mul",
                                options, m1_arg, m1p_arg, m2_arg, m2p_arg,
-                               out_arg);
+                               out);
   Grid grid = Grid(cl::NDRange(m2.cols(), m1.rows()),
                    cl::NDRange(block_size, block_size));
   auto f = queue->EnqueueTask(task, grid);
-  return oclalgo::future<DMatrix<T>>(DMatrix<T>(m1.rows(), m2.cols(), out),
-                                     f.event());
+  DMatrix<T> result(m1.rows(), m2.cols(), out.data());
+  return oclalgo::future<DMatrix<T>>(std::move(result), f.event());
 }
 
 }  // namespace oclalgo

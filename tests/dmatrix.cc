@@ -74,7 +74,7 @@ TEST(DMatrix, CtorFromBuffer) {
       m(i, j) = i * cols + j;
 
   cl::Buffer buff = oclalgo::MatrixQueue::instance()->CreateBuffer(
-      oclalgo::BufferType::ReadWrite, m.data());
+      m.data(), oclalgo::BufferType::ReadWrite);
 
   DMatrix<int> dm(rows, cols, buff);
   EXPECT_EQ(m.rows(), dm.rows());

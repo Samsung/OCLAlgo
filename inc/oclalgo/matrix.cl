@@ -70,11 +70,10 @@ inline VAR_TYPE matrix_get(global const VAR_TYPE* m, global const matrix_param_t
   return param->dir == ROW ? m[i * param->cols + j] : m[j * param->rows + i];
 }
 
-kernel void matrix_mul(global const VAR_TYPE *A,
-                       global const matrix_param_t *A_param,
-                       global const VAR_TYPE *B,
-                       global const matrix_param_t *B_param,
-                       global VAR_TYPE *C) {
+kernel __attribute__((reqd_work_group_size(BLOCK_SIZE, BLOCK_SIZE, 1)))
+void matrix_mul(global const VAR_TYPE *A, global const matrix_param_t *A_param,
+                global const VAR_TYPE *B, global const matrix_param_t *B_param,
+                global VAR_TYPE *C) {
   int gx = get_group_id(0);
   int lx = get_local_id(0);
   int gy = get_group_id(1);
