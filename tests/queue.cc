@@ -55,29 +55,46 @@ std::string platform_name = "NVIDIA";
 std::string device_name = "GeForce";
 
 TEST(Queue, VectorAdd) {
-  using oclalgo::BufferType;
-  using oclalgo::BufferArg;
-  using oclalgo::ArgType;
   try {
+    // create OpenCL queue for sync/async task running using
+    // part platform and device names
     oclalgo::Queue queue(platform_name, device_name);
-    const int size = 1024;
+
+    // create and initialize input shared arrays
+    int size = 1024;
     oclalgo::shared_array<int> a(size), b(size);
     for (int i = 0; i < size; ++i) {
       a[i] = i;
       b[i] = size - i;
     }
 
+    // initialize OpenCl kernel arguments
+    using oclalgo::ArgType;
+    using oclalgo::BufferArg;
     BufferArg a_arg = queue.CreateKernelArg(a, ArgType::IN);
     BufferArg b_arg = queue.CreateKernelArg(b, ArgType::IN);
     BufferArg c_arg = queue.CreateKernelArg<int>(size, ArgType::OUT);
 
-    oclalgo::Task task = queue.CreateTask("vector.cl", "vector_add", "", a_arg,
-                                          b_arg, c_arg);
+    // create task using OpenCL program and kernel names, compilation options
+    // and arguments in the same order as in OpenCL kernel
+    oclalgo::Task task = queue.CreateTask("vector.cl", "vector_add", "",
+                                          a_arg, b_arg, c_arg);
+
+    // create grid to define dimensions of OpenCL task
+    // in global and local (group size) space
     oclalgo::Grid grid = oclalgo::Grid(cl::NDRange(size));
+
+    // enqueue OpenCL task (EnqueueTask() returns oclalgo::future object
+    // for async task running)
     auto ocl_res = queue.EnqueueTask(task, grid);
+
+    // copy device memory with result to host
+    // (ocl_res.get() waits while OpenCL finished task
+    // and returns std::vector with output OpenCL buffers,
+    // which was marked as ArgType::OUT or ArgType::IN_OUT when was created)
     queue.memcpy(a, ocl_res.get()[0]);
 
-    // check results
+    // check result
     auto it = std::find_if(a.get_raw(), a.get_raw() + a.size(),
                            [size](int x) { return x != size; });
     ASSERT_EQ(a.get_raw() + a.size(), it);
@@ -225,7 +242,8 @@ TEST(Queue, MatrixMul_Col) {
     oclalgo::Task task = queue.CreateTask("matrix.cl", "matrix_mul",
                                           "-D BLOCK_SIZE=2 -D VAR_TYPE=int", A,
                                           A_param_arg, B, B_param_arg, C);
-    oclalgo::Grid grid = oclalgo::Grid(cl::NDRange(m2_param.cols, m1_param.rows),
+    oclalgo::Grid grid = oclalgo::Grid(cl::NDRange(m2_param.cols,
+                                                   m1_param.rows),
                                        cl::NDRange(2, 2));
     auto future = queue.EnqueueTask(task, grid);
 
