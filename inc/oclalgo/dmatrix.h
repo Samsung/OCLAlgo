@@ -281,16 +281,17 @@ oclalgo::future<DMatrix<T>> operator-(const DMatrix<T>& m1,
   return oclalgo::future<DMatrix<T>>(std::move(result), f.event());
 }
 
-enum DataDir { ROW, COL };
+enum PackingType { ROW, COL };
 
 struct matrix_param_t {
   int rows;
   int cols;
-  DataDir dir;
-  matrix_param_t(int rows, int cols, DataDir dir)
+  PackingType packing;
+
+  matrix_param_t(int rows, int cols, PackingType packing)
       : rows(rows),
         cols(cols),
-        dir(dir) {
+        packing(packing) {
   }
 };
 
@@ -298,8 +299,8 @@ template <typename T>
 oclalgo::future<DMatrix<T>> operator*(const DMatrix<T>& m1,
                                       const DMatrix<T>& m2) {
   assert(m1.cols() == m2.rows());
-  matrix_param_t m1_param(m1.rows(), m1.cols(), DataDir::ROW);
-  matrix_param_t m2_param(m2.rows(), m2.cols(), DataDir::ROW);
+  matrix_param_t m1_param(m1.rows(), m1.cols(), PackingType::ROW);
+  matrix_param_t m2_param(m2.rows(), m2.cols(), PackingType::ROW);
   Queue *queue = MatrixQueue::instance();
 
   BufferArg m1_arg(m1.buffer(), ArgType::IN);

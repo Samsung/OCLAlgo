@@ -61,7 +61,7 @@ TEST(Queue, VectorAdd) {
     oclalgo::Queue queue(platform_name, device_name);
 
     // create and initialize input shared arrays
-    int size = 1024;
+    int size = 128;
     oclalgo::shared_array<int> a(size), b(size);
     for (int i = 0; i < size; ++i) {
       a[i] = i;
@@ -111,7 +111,7 @@ TEST(Queue, MatrixAdd) {
   using oclalgo::ArgType;
   try {
     oclalgo::Queue queue(platform_name, device_name);
-    int rows = 1024, cols = 2048, size = rows * cols;
+    int rows = 128, cols = 512, size = rows * cols;
     oclalgo::shared_array<int> a(size), b(size);
     for (int i = 0; i < rows; ++i) {
       for (int j = 0; j < cols; ++j) {
@@ -145,12 +145,12 @@ TEST(Queue, MatrixAdd) {
 extern "C" {
 #endif  // __cplusplus
 
-typedef enum { ROW, COL } DataDir;
+typedef enum { ROW, COL } PackingType;
 
 typedef struct tag_matrix_param_t {
   int rows;
   int cols;
-  DataDir dir;
+  PackingType packing;
 } matrix_param_t;
 
 #ifdef __cplusplus
@@ -164,8 +164,8 @@ TEST(Queue, MatrixMul_Row) {
   try {
     oclalgo::Queue queue(platform_name, device_name);
     matrix_param_t m1_param, m2_param;
-    m1_param.cols = 4, m1_param.rows = 4, m1_param.dir = DataDir::ROW;
-    m2_param.cols = 8, m2_param.rows = 4, m2_param.dir = DataDir::ROW;
+    m1_param.cols = 4, m1_param.rows = 4, m1_param.packing = PackingType::ROW;
+    m2_param.cols = 8, m2_param.rows = 4, m2_param.packing = PackingType::ROW;
     oclalgo::shared_array<int> m1(m1_param.cols * m1_param.rows);
     oclalgo::shared_array<int> m2(m2_param.cols * m2_param.rows);
 
@@ -215,8 +215,8 @@ TEST(Queue, MatrixMul_Col) {
   try {
     oclalgo::Queue queue(platform_name, device_name);
     matrix_param_t m1_param, m2_param;
-    m1_param.cols = 4, m1_param.rows = 4, m1_param.dir = DataDir::COL;
-    m2_param.cols = 8, m2_param.rows = 4, m2_param.dir = DataDir::ROW;
+    m1_param.cols = 4, m1_param.rows = 4, m1_param.packing = PackingType::COL;
+    m2_param.cols = 8, m2_param.rows = 4, m2_param.packing = PackingType::ROW;
     oclalgo::shared_array<int> m1(m1_param.cols * m1_param.rows);
     oclalgo::shared_array<int> m2(m2_param.cols * m2_param.rows);
 

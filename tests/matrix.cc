@@ -49,7 +49,7 @@
 
 TEST(Matrix, Copy) {
   using oclalgo::Matrix;
-  Matrix<int> m1(1024, 2048);
+  Matrix<int> m1(128, 512);
   for (int i = 0; i < m1.rows(); ++i)
     for (int j = 0; j < m1.cols(); ++j)
       m1(i, j) = i * m1.cols() + j;
@@ -62,7 +62,7 @@ TEST(Matrix, Copy) {
 
 TEST(Matrix, MoveCopy) {
   using oclalgo::Matrix;
-  int rows = 1024, cols = 2048;
+  int rows = 512, cols = 256;
   Matrix<int> m1(rows, cols);
   for (int i = 0; i < m1.rows(); ++i)
     for (int j = 0; j < m1.cols(); ++j)
@@ -78,7 +78,7 @@ TEST(Matrix, MoveCopy) {
 
 TEST(Matrix, Assignment) {
   using oclalgo::Matrix;
-  Matrix<int> m1(1024, 2048);
+  Matrix<int> m1(512, 256);
   for (int i = 0; i < m1.rows(); ++i)
     for (int j = 0; j < m1.cols(); ++j)
       m1(i, j) = i * m1.cols() + j;
@@ -92,7 +92,7 @@ TEST(Matrix, Assignment) {
 
 TEST(Matrix, MoveAssignment) {
   using oclalgo::Matrix;
-  int rows = 1024, cols = 2048;
+  int rows = 512, cols = 256;
   Matrix<int> m1(rows, cols);
   for (int i = 0; i < m1.rows(); ++i)
     for (int j = 0; j < m1.cols(); ++j)
@@ -109,7 +109,7 @@ TEST(Matrix, MoveAssignment) {
 
 TEST(Matrix, Add) {
   using oclalgo::Matrix;
-  Matrix<int> m1(1024, 2048), m2(1024, 2048);
+  Matrix<int> m1(512, 256), m2(512, 256);
   for (int i = 0; i < m1.rows(); ++i) {
     for (int j = 0; j < m1.cols(); ++j) {
       m1(i, j) = i * m1.cols() + j;
@@ -125,7 +125,7 @@ TEST(Matrix, Add) {
 
 TEST(Matrix, Sub) {
   using oclalgo::Matrix;
-  Matrix<int> m1(1024, 2048), m2(1024, 2048);
+  Matrix<int> m1(512, 128), m2(512, 128);
   for (int i = 0; i < m1.rows(); ++i) {
     for (int j = 0; j < m1.cols(); ++j) {
       m1(i, j) = i * m1.cols() + j + m1.cols() * m1.rows();
@@ -141,7 +141,7 @@ TEST(Matrix, Sub) {
 
 TEST(Matrix, MulIdentity) {
   using oclalgo::Matrix;
-  Matrix<int> m1(256, 256), I(256, 256);
+  Matrix<int> m1(200, 200), I(200, 200);
   for (int i = 0; i < m1.rows(); ++i) {
     for (int j = 0; j < m1.cols(); ++j) {
       m1(i, j) = i * m1.cols() + j;
@@ -202,7 +202,7 @@ TEST(Matrix, MulFloat) {
 
 TEST(Matrix, Transpose) {
   using oclalgo::Matrix;
-  Matrix<int> m1(1024, 2048), m2(2048, 1024);
+  Matrix<int> m1(512, 256), m2(256, 512);
   for (int i = 0; i < m1.rows(); ++i)
     for (int j = 0; j < m1.cols(); ++j)
       m1(i, j) = i * m1.cols() + j;

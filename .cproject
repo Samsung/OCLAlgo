@@ -44,8 +44,11 @@
 							</tool>
 						</toolChain>
 					</folderInfo>
+					<fileInfo id="org.eclipse.linuxtools.cdt.autotools.core.configuration.build.49116234.2034091287" name="matrix.cl" rcbsApplicability="disable" resourcePath="inc/oclalgo/matrix.cl" toolsToInvoke="org.eclipse.linuxtools.cdt.autotools.core.toolchain.tool.gcc.1733815819.1492050015">
+						<tool id="org.eclipse.linuxtools.cdt.autotools.core.toolchain.tool.gcc.1733815819.1492050015" name="GCC C Compiler" superClass="org.eclipse.linuxtools.cdt.autotools.core.toolchain.tool.gcc.1733815819"/>
+					</fileInfo>
 					<sourceEntries>
-						<entry excluding="inc/boost|fftf/tests/google|tests/google|src/boost" flags="VALUE_WORKSPACE_PATH|RESOLVED" kind="sourcePath" name=""/>
+						<entry excluding="inc/oclalgo/vector.cl|inc/oclalgo/matrix.cl|inc/boost|fftf/tests/google|tests/google|src/boost" flags="VALUE_WORKSPACE_PATH|RESOLVED" kind="sourcePath" name=""/>
 					</sourceEntries>
 				</configuration>
 			</storageModule>

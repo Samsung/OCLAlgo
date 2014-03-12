@@ -48,7 +48,7 @@
 TEST(DMatrix, CtorFromMatrix) {
   using oclalgo::Matrix;
   using oclalgo::DMatrix;
-  int rows = 1024, cols = 2048;
+  int rows = 512, cols = 256;
   Matrix<int> m(rows, cols);
   for (int i = 0; i < rows; ++i)
     for (int j = 0; j < cols; ++j)
@@ -67,7 +67,7 @@ TEST(DMatrix, CtorFromMatrix) {
 TEST(DMatrix, CtorFromBuffer) {
   using oclalgo::Matrix;
   using oclalgo::DMatrix;
-  int rows = 1024, cols = 2048;
+  int rows = 512, cols = 256;
   Matrix<int> m(rows, cols);
   for (int i = 0; i < rows; ++i)
     for (int j = 0; j < cols; ++j)
@@ -89,7 +89,7 @@ TEST(DMatrix, CtorFromBuffer) {
 TEST(DMatrix, ToHost) {
   using oclalgo::Matrix;
   using oclalgo::DMatrix;
-  int rows = 1024, cols = 2048;
+  int rows = 512, cols = 128;
   Matrix<int> m(rows, cols);
   for (int i = 0; i < rows; ++i)
     for (int j = 0; j < cols; ++j)
@@ -112,7 +112,7 @@ TEST(DMatrix, ToHost) {
 TEST(DMatrix, UpdateData) {
   using oclalgo::Matrix;
   using oclalgo::DMatrix;
-  int rows = 1024, cols = 2048;
+  int rows = 512, cols = 128;
   Matrix<int> m1(rows, cols);
   for (int i = 0; i < m1.rows(); ++i)
     for (int j = 0; j < m1.cols(); ++j)
@@ -155,7 +155,7 @@ TEST(DMatrix, UpdateData) {
 TEST(DMatrix, Add) {
   using oclalgo::Matrix;
   using oclalgo::DMatrix;
-  int rows = 1024, cols = 2048;
+  int rows = 256, cols = 128;
   Matrix<int> m1(rows, cols), m2(rows, cols);
   for (int i = 0; i < rows; ++i) {
     for (int j = 0; j < cols; ++j) {
@@ -178,7 +178,7 @@ TEST(DMatrix, Add) {
 TEST(DMatrix, Sub) {
   using oclalgo::Matrix;
   using oclalgo::DMatrix;
-  int rows = 1024, cols = 2048;
+  int rows = 256, cols = 128;
   Matrix<int> m1(rows, cols), m2(rows, cols);
   for (int i = 0; i < rows; ++i) {
     for (int j = 0; j < cols; ++j) {
@@ -201,7 +201,7 @@ TEST(DMatrix, Sub) {
 TEST(DMatrix, MulIdentity) {
   using oclalgo::Matrix;
   using oclalgo::DMatrix;
-  Matrix<int> m1(256, 256), I(256, 256);
+  Matrix<int> m1(200, 200), I(200, 200);
   for (int i = 0; i < m1.rows(); ++i) {
     for (int j = 0; j < m1.cols(); ++j) {
       m1(i, j) = i * m1.cols() + j;

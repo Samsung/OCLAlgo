@@ -31,12 +31,19 @@
  * URL:      https://github.com/seninds/OCLAlgo
  */
 
+// hack for highlighting syntax in OpenCL *.cl files without errors
+#ifndef __OPENCL_VERSION__
+#define __kernel
+#define __global
+#define __local
+#endif  // __OPENCL_VERSION__
+
 #ifndef VAR_TYPE
 #define VAR_TYPE int
 #endif  // VAR_TYPE
 
-kernel void matrix_add(global const VAR_TYPE *A, global const VAR_TYPE *B,
-                       global VAR_TYPE *C) {
+__kernel void matrix_add(__global const VAR_TYPE *A, __global const VAR_TYPE *B,
+                         __global VAR_TYPE *C) {
   int i = get_global_id(0);
   int j = get_global_id(1);
   int cols = get_global_size(1);
@@ -44,8 +51,8 @@ kernel void matrix_add(global const VAR_TYPE *A, global const VAR_TYPE *B,
   C[idx] = A[idx] + B[idx];
 }
 
-kernel void matrix_sub(global const VAR_TYPE *A, global const VAR_TYPE *B,
-                       global VAR_TYPE *C) {
+__kernel void matrix_sub(__global const VAR_TYPE *A, __global const VAR_TYPE *B,
+                         __global VAR_TYPE *C) {
   int i = get_global_id(0);
   int j = get_global_id(1);
   int cols = get_global_size(1);
@@ -57,30 +64,33 @@ kernel void matrix_sub(global const VAR_TYPE *A, global const VAR_TYPE *B,
 #define BLOCK_SIZE 32
 #endif  // BLOCK_SIZE
 
-typedef enum { ROW, COL } DataDir;
+typedef enum { ROW, COL } PackingType;
 
 typedef struct tag_matrix_param_t {
   int rows;
   int cols;
-  DataDir dir;
+  PackingType packing;
 } matrix_param_t;
 
-inline VAR_TYPE matrix_get(global const VAR_TYPE* m, global const matrix_param_t* param,
-                           int i, int j) {
-  return param->dir == ROW ? m[i * param->cols + j] : m[j * param->rows + i];
+inline VAR_TYPE get_element(__global const VAR_TYPE* m,
+                           __global const matrix_param_t* param, int i, int j) {
+  return param->packing == ROW ? m[i * param->cols + j] :
+                                 m[j * param->rows + i];
 }
 
-kernel __attribute__((reqd_work_group_size(BLOCK_SIZE, BLOCK_SIZE, 1)))
-void matrix_mul(global const VAR_TYPE *A, global const matrix_param_t *A_param,
-                global const VAR_TYPE *B, global const matrix_param_t *B_param,
-                global VAR_TYPE *C) {
+__kernel __attribute__((reqd_work_group_size(BLOCK_SIZE, BLOCK_SIZE, 1)))
+void matrix_mul(__global const VAR_TYPE *A,
+                __global const matrix_param_t *A_param,
+                __global const VAR_TYPE *B,
+                __global const matrix_param_t *B_param,
+                __global VAR_TYPE *C) {
   int gx = get_group_id(0);
   int lx = get_local_id(0);
   int gy = get_group_id(1);
   int ly = get_local_id(1);
 
-  local VAR_TYPE AS[BLOCK_SIZE][BLOCK_SIZE];
-  local VAR_TYPE BS[BLOCK_SIZE][BLOCK_SIZE];
+  __local VAR_TYPE AS[BLOCK_SIZE][BLOCK_SIZE];
+  __local VAR_TYPE BS[BLOCK_SIZE][BLOCK_SIZE];
 
   int i_A, j_A, i_B, j_B;
   VAR_TYPE sum = 0;
@@ -89,11 +99,14 @@ void matrix_mul(global const VAR_TYPE *A, global const matrix_param_t *A_param,
     i_A = BLOCK_SIZE * gy + ly;
     j_B = BLOCK_SIZE * gx + lx;
     i_B = i + ly;
-    // if current positions in shared matrices AS and BS are out of range then set 0
+
+    // if current positions in shared matrices AS and BS are
+    // out of range then set 0
     AS[ly][lx] = (j_A < A_param->cols && i_A < A_param->rows) ?
-        matrix_get(A, A_param, i_A, j_A) : 0;
+        get_element(A, A_param, i_A, j_A) : 0;
     BS[ly][lx] = (j_B < B_param->cols && i_B < B_param->rows) ?
-        matrix_get(B, B_param, i_B, j_B) : 0;
+        get_element(B, B_param, i_B, j_B) : 0;
+
     barrier(CLK_LOCAL_MEM_FENCE);
 
     #pragma unroll
@@ -104,7 +117,9 @@ void matrix_mul(global const VAR_TYPE *A, global const matrix_param_t *A_param,
     barrier(CLK_LOCAL_MEM_FENCE);
   }
 
-  C[get_global_id(1) * get_global_size(0) + get_global_id(0)] = sum;
+  if (get_global_id(1) < A_param->rows && get_global_id(0) < B_param->cols) {
+    C[get_global_id(1) * B_param->cols + get_global_id(0)] = sum;
+  }
 }
 
 #undef BLOCK_SIZE

@@ -31,7 +31,15 @@
  * URL:      https://github.com/seninds/OCLAlgo
  */
 
-kernel void vector_add(global const int *A, global const int *B, global int *C) {
+// hack for highlighting syntax in OpenCL *.cl files without errors
+#ifndef __OPENCL_VERSION__
+#define __kernel
+#define __global
+#define __local
+#endif  // __OPENCL_VERSION__
+
+__kernel void vector_add(__global const int *A, __global const int *B,
+                         __global int *C) {
   int i = get_global_id(0);
   C[i] = A[i] + B[i];
 }
